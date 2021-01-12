@@ -4,8 +4,11 @@ Temporal network object for multilayer network analysis of the calcium dynamics 
 Using the helper functions, a time series of calcium dynamics(in general any time series) can be converted into cross-correlation matrices of given window size. Then, the `temporal_network` object converts the list of adjacency matrices into an ordinally and diagonally coupled multilayer network, i.e. interlayer edges are given between a node and it's future self in the adjacent layers only. 
 
 Then, one can perform several different community detection algorithms such as:
+
 Multilayer Modularity Maximization(MMM) (PJ. Mucha et al. 2010) using a Louvain-like greedy algorithm Leiden (VA. Traag et al. 2019). 
-Infomap with Map equation https://www.mapequation.org .
+
+Infomap with Map equation https://www.mapequation.org.
+
 DSBM with https://graph-tool.skewed.de.
 
 

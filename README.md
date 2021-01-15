@@ -9,7 +9,7 @@ Multilayer Modularity Maximization(MMM) (PJ. Mucha et al. 2010) using a Louvain-
 
 Infomap with Map equation https://www.mapequation.org.
 
-DSBM with https://graph-tool.skewed.de.
+DPPM with https://github.com/nathanntg/dynamic-plex-propagation
 
 
 More documentation is coming soon.

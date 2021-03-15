@@ -5,16 +5,23 @@
 
 
 import numpy as np
+from math import floor
+import random
+
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import random
+
 from scipy.ndimage import gaussian_filter1d
 from scipy.stats import zscore
 from scipy.spatial.distance import jensenshannon
-from math import floor
+
 import leidenalg as la
 import igraph as ig
+
 from infomap import Infomap, MultilayerNode
+
+import tensorly as tl
+from tensorly.decomposition import non_negative_parafac
 
 
 # In[ ]:
@@ -195,13 +202,17 @@ class temporal_network:
         if normalized: return (aggragated/t)
         else: return (aggragated)
     
-    def binarize(self, array):
+    def binarize(self, array, thresh = None):
         n,t = array.shape
         binary_spikes = np.zeros(array.shape)
         for i in range(n):
             for j in range(t):
-                if array[i][j] == 0: pass
-                else: binary_spikes[i][j] = 1
+                if thresh is None:
+                    if array[i][j] <= 0: pass
+                    else: binary_spikes[i][j] = 1
+                else:
+                    if array[i][j] < thresh: array[i][j] = 0
+                    else: binary_spikes[i][j] = 1
         return(binary_spikes)
     
     def threshold(self, array, thresh):
@@ -268,6 +279,92 @@ class temporal_network:
             average_degree = average_degree + len(self.neighbors(i,layer))
         
         return(average_degree/(2*self.size))
+    
+    def get_attrs_or_nones(self, seq, attr_name):
+        try:
+            return seq[attr_name]
+        except KeyError:
+            return [None] * len(seq)
+    
+    def disjoint_union_attrs(self, graphs):
+        G = ig.Graph.disjoint_union(graphs[0], graphs[1:])
+        vertex_attributes = set(sum([H.vertex_attributes() for H in graphs], []))
+        edge_attributes = set(sum([H.edge_attributes() for H in graphs], []))
+
+        for attr in vertex_attributes:
+            attr_value = sum([self.get_attrs_or_nones(H.vs, attr) for H in graphs], [])
+            G.vs[attr] = attr_value
+        for attr in edge_attributes:
+            attr_value = sum([self.get_attrs_or_nones(H.es, attr) for H in graphs], [])
+            G.es[attr] = attr_value
+        return G
+
+    def time_slices_to_layers(self, graphs, interlayer_indices, interlayer_weights,
+                              interslice_weight=1,
+                              slice_attr='slice',
+                              vertex_id_attr='id',
+                              edge_type_attr='type',
+                              weight_attr='weight'):
+    
+        G_slices = ig.Graph.Tree(len(graphs), 1, mode=ig.TREE_UNDIRECTED)
+        G_slices.es[weight_attr] = interslice_weight
+        G_slices.vs[slice_attr] = graphs
+    
+        return self.slices_to_layers(G_slices, interlayer_indices, interlayer_weights, slice_attr,vertex_id_attr,edge_type_attr,weight_attr)
+
+    def slices_to_layers(self, G_coupling, interlayer_indices, interlayer_weights,
+                         slice_attr='slice',
+                         vertex_id_attr='id',
+                         edge_type_attr='type',
+                         weight_attr='weight'):
+        
+        if not slice_attr in G_coupling.vertex_attributes():
+            raise ValueError("Could not find the vertex attribute {0} in the coupling graph.".format(slice_attr))
+
+        if not weight_attr in G_coupling.edge_attributes():
+            raise ValueError("Could not find the edge attribute {0} in the coupling graph.".format(weight_attr))
+
+        # Create disjoint union of the time graphs
+        for v_slice in G_coupling.vs: 
+            H = v_slice[slice_attr]
+            H.vs[slice_attr] = v_slice.index
+            if not vertex_id_attr in H.vertex_attributes():
+                raise ValueError("Could not find the vertex attribute {0} to identify nodes in different slices.".format(vertex_id_attr ))
+            if not weight_attr in H.edge_attributes():
+                H.es[weight_attr] = 1
+
+        G = self.disjoint_union_attrs(G_coupling.vs[slice_attr])
+        G.es[edge_type_attr] = 'intraslice'
+
+        for i in range(len(G_coupling.vs[slice_attr])-1):
+            v_slice = G_coupling.vs[i]
+            nodes_v = sorted([v for v in G.vs if v[slice_attr] == v_slice.index and v[vertex_id_attr] in G.vs.select(lambda v: v[slice_attr]==v_slice.index)[vertex_id_attr]], key=lambda v: v[vertex_id_attr])
+            for j,v in enumerate(nodes_v):
+                w, nbr = self.neighborhood_flow(i, j, interlayer_indices, interlayer_weights, thresh = 0.2)
+                edges = []
+                a = G.vs[int(i*self.size + j)]
+                for n in nbr:
+                    b = G.vs[int((i+1)*self.size + n)]
+                    edges.append((a,b))
+                e_start = G.ecount()
+                G.add_edges(edges)
+                e_end = G.ecount()
+                e_idx = range(e_start,e_end)
+                G.es[e_idx][weight_attr] = w
+                G.es[e_idx][edge_type_attr] = 'interslice'
+
+        # Convert aggregate graph to individual layers for each time slice.
+        G_layers = [None]*G_coupling.vcount()
+        for v_slice in G_coupling.vs:
+            H = G.subgraph_edges(G.es.select(_within=[v.index for v in G.vs if v[slice_attr] == v_slice.index]), delete_vertices=False)
+            H.vs['node_size'] = [1 if v[slice_attr] == v_slice.index else 0 for v in H.vs]
+            G_layers[v_slice.index] = H
+
+        # Create one graph for the interslice links.
+        G_interslice = G.subgraph_edges(G.es.select(type_eq='interslice'), delete_vertices=False)
+        G_interslice.vs['node_size'] = 0
+    
+        return G_layers, G_interslice, G
     
     def create_igraph(self):
         T = self.length
@@ -560,6 +657,57 @@ class temporal_network:
                 interlayers.append(layerweights)
         return(interlayers)
     
+    def make_tensor(self, rank, threshold, update_method, **kwargs):
+        
+        #Make tensor according to one of four methods
+        if update_method == 'local' or update_method == 'global': 
+            tensor = np.zeros((self.size, self.size, int((2*self.length)-1)))
+            inters = self.update_interlayer(kwargs['spikes'], 0.5, 1, 0.01, update_method)
+            for i in range(int((2*self.length)-1)):
+                if i%2 == 0:
+                    tensor[:,:,i] = self.threshold(self.list_adjacency[int(i/2)], threshold)
+                else:
+                    tensor[:,:,i] = np.diag(inters[int((i-1)/2)])
+            X = tl.tensor(tensor)
+        
+        elif update_method == 'neighborhood':
+            tensor = np.zeros((self.size, self.size, int((2*self.length)-1)))
+            updated_interlayer_indices, updated_interlayer_weights = self.get_normalized_outlinks(self.list_adjacency, 1)
+            for i in range(int((2*self.length)-1)):
+                if i%2 == 0:
+                    tensor[:,:,i] = self.threshold(self.list_adjacency[int(i/2)], threshold)
+                else:
+                    inter_layer = np.zeros((num_neurons,num_neurons))
+                    for k in range(self.size):
+                        w, nbr = self.neighborhood_flow(int(i/2), k, updated_interlayer_indices, updated_interlayer_weights, threshold)
+                        if np.isnan(w):
+                            w = 1.0
+                        for n in nbr:
+                            inter_layer[k,int(n)] = w
+                    tensor[:,:,i] = inter_layer
+            X = tl.tensor(tensor)
+    
+        elif update_method == None:
+            tensor = np.zeros((self.size, self.size, int((2*self.length)-1)))
+            for i in range(self.length):
+                tensor[:,:,i] = self.threshold(self.list_adjacency[i], threshold)
+            X = tl.tensor(tensor)
+            
+        #solve for PARAFAC decomposition
+        weights_parafac, factors_parafac = non_negative_parafac(X, rank = rank, n_iter_max = 500, init = 'random')
+
+        return(weights_parafac, factors_parafac)
+    
+    def process_tensor(self, factors, rank):
+        comms = []
+        membership = [[] for r in range(rank)]
+        for i in range(self.length):
+            for j in range(self.size):
+                comm_id = np.argmax(((factors[0][j]+factors[1][j])/2)*factors[2][i])
+                comms.append(comm_id)
+                membership[comm_id].append((j,i))
+        return(membership, comms)
+    
     def community_consensus_iterative(self, C):
         ## function finding the consensus of a given set of partitions. refer to the paper:
         ## 'Robust detection of dynamic community structure in networks', Danielle S. Bassett, 
@@ -612,18 +760,20 @@ class temporal_network:
         Parameters
         ===========
         method: str
-            Either MMM or infomap indicating the community detection method
+            Either MMM, Infomap or PARA_FACT(Tensor Factorization) indicating the community detection method
         update_method: str
             Interlayer edges will be processed based on one of the three methods, either 
             local, global or neigborhood see `infomap`.
         consensus: bool
             Statistically significant partitions will be found from a given set of partitions.
         interlayers: 1-D array like
-            A range of values for setting the interlayer edges of the network.
+            A range of values for setting the interlayer edges of the network(MMM or Infomap only).
         resolutions: 1-D array like
-            A range of values for the resolution parameters.
+            A range of values for the resolution parameters(MMM only).
         thresholds: 1-D array like
-            A range of values to threshold the network.
+            A range of values to threshold the network(Infomap and PARA_FACT only).
+        ranks: 1-D array like
+            A range of ad-hoc number of communities to be found(PARA_FACT only)
         spikes: 2-D array
             Initial array containing the spikes.
         
@@ -639,15 +789,38 @@ class temporal_network:
     
                 ##update interlayer edges
                 if update_method == 'local' or update_method == 'global': 
+            
                     inter_edge = self.update_interlayer(kwargs['spikes'], X = 0.5, omega_global = e, percentage = 0.01, method = update_method)    
-                else: inter_edge = e
-                
-                for j,f in enumerate(kwargs['resolutions']):
-                    parts, inter_parts = self.leiden(igraphs, inter_edge, f)
+                    for j,f in enumerate(kwargs['resolutions']):
+                        parts, inter_parts = self.leiden(igraphs, inter_edge, f)
                     
-                    C[i*grid+j,:] = inter_parts.membership
-                    comm_labels, comm_size  = self.membership(inter_parts)
-                    membership_labels.append(comm_labels)
+                        C[i*grid+j,:] = inter_parts.membership
+                        comm_labels, comm_size  = self.membership(inter_parts)
+                        membership_labels.append(comm_labels)
+                        
+                elif update_method == 'neighborhood':
+                    interlayer_indices, interlayer_weights = self.get_normalized_outlinks(self.list_adjacency, e)
+                    for j,f in enumerate(kwargs['resolutions']):
+                        layers, interslice_layer, G_full = self.time_slices_to_layers(igraphs, interlayer_indices, interlayer_weights, interslice_weight = e)
+                        partitions = [la.RBConfigurationVertexPartition(H, weights = 'weight', resolution_parameter = f) for H in layers]
+        
+                        interslice_partition = la.RBConfigurationVertexPartition(interslice_layer, weights = 'weight', resolution_parameter = 0)
+                                                     
+                        optimiser = la.Optimiser()
+        
+                        diff = optimiser.optimise_partition_multiplex(partitions + [interslice_partition])
+                        C[i*grid+j,:] = interslice_partition.membership
+                        comm_labels, comm_size  = self.membership(interslice_partition)
+                        membership_labels.append(comm_labels)
+                   
+                elif update_method == None:
+                    
+                    for j,f in enumerate(kwargs['resolutions']):
+                        parts, inter_parts = self.leiden(igraphs, e, f)
+                    
+                        C[i*grid+j,:] = inter_parts.membership
+                        comm_labels, comm_size  = self.membership(inter_parts)
+                        membership_labels.append(comm_labels)
                     
                 membership_partitions['interlayer=%.3f'%e] = membership_labels
             
@@ -676,6 +849,20 @@ class temporal_network:
                     C[i*grid+j,:] = [node[2] for node in np.sort(ordered_nodes, order = ['layer', 'nodeid'])]
         
                 membership_partitions['interlayer=%.3f'%interlayer] = inter_membership
+        
+        elif method == 'PARA_FACT':
+            grid = len(kwargs['ranks'])
+            membership_partitions = {}
+            C = np.zeros((grid*grid, self.size*self.length))
+            
+            for i, r in enumerate(kwargs['ranks']):
+                inter_membership = []
+                for j, thresh in enumerate(kwargs['thresholds']):
+                    weights, factors = self.make_tensor(r, thresh, update_method, **kwargs)
+                    membership, comm  = self.process_tensor(factors, r)
+                    inter_membership.append(membership)
+                    C[i*grid+j,:] = comm
+                membership_partitions['rank=%d'%r] = inter_membership
         
         if consensus: 
             return(self.membership(self.community_consensus_iterative(C))[0], C)

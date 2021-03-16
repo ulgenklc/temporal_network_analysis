@@ -677,7 +677,7 @@ class temporal_network:
                 if i%2 == 0:
                     tensor[:,:,i] = self.threshold(self.list_adjacency[int(i/2)], threshold)
                 else:
-                    inter_layer = np.zeros((num_neurons,num_neurons))
+                    inter_layer = np.zeros((self.size,self.size))
                     for k in range(self.size):
                         w, nbr = self.neighborhood_flow(int(i/2), k, updated_interlayer_indices, updated_interlayer_weights, threshold)
                         if np.isnan(w):

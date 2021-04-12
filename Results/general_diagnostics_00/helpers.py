@@ -7,6 +7,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from matplotlib.colors import Normalize
 import random
 from scipy.ndimage import gaussian_filter1d
 from math import floor
@@ -16,8 +17,11 @@ import elephant.conversion as conv
 import neo as n
 import quantities as pq
 from quantities import Hz, s, ms
+
 from sklearn.metrics import normalized_mutual_info_score, adjusted_rand_score, f1_score
 
+import leidenalg as la
+import igraph as ig
 
 # In[ ]:
 
@@ -88,13 +92,17 @@ def bin_time_series(array, binsize, gaussian = True, **kwargs):
         A[i] = gauss_array[:,i*binsize:(i+1)*binsize]
     return(A)
 
-def binarize(array, thresh = 0):
+def binarize(array, thresh = None):
     n,t = array.shape
     binary_spikes = np.zeros((n,t))
     for i in range(n):
         for j in range(t):
-            if array[i][j] <= thresh: pass
-            else: binary_spikes[i][j] = 1
+            if thresh is not None:
+                if array[i][j] <=thresh: pass
+                else: binary_spikes[i][j] = 1
+            else:
+                if array[i][j] == 0: pass
+                else: binary_spikes[i][j] = 1
     return(binary_spikes)
 
 def threshold(array, thresh):
@@ -170,6 +178,31 @@ def generate_ground_truth(comm_sizes, method = 'scattered', pad = False, communi
             if pad:
                 truth_labels = truth_labels + [0 for i in range(sum(comm_sizes[:layers]))]
                 truth_labels = truth_labels + [0 for i in range(sum(comm_sizes[:layers]))]
+    
+    elif community_operation == 'contract':
+        layers = len(comm_sizes)
+        if method == 'scattered':
+            truth_labels_tip = [0 for i in range(sum(comm_sizes))]
+            truth_labels_end = [0 for i in range(sum(comm_sizes[:1]))] + list(np.arange(1, sum(comm_sizes[1:])+1))
+            truth_labels = truth_labels_tip
+            
+            for j in range(1,layers):
+                truth_labels = truth_labels + [0 for i in range(sum(comm_sizes[:(layers-j)]))] + truth_labels_end[sum(comm_sizes[:(layers-j)]):]
+            
+            
+            if pad:
+                truth_labels = truth_labels_tip + truth_labels + truth_labels_end
+                
+        if method == 'integrated':
+            truth_labels = [0 for i in range(sum(comm_sizes))]
+            truth_labels_tip = truth_labels
+            for j in range(1,layers):
+                truth_labels = truth_labels + [0 for i in range(sum(comm_sizes[:(layers-j)]))] + [1 for i in range(sum(comm_sizes[(layers-j):]))]
+                
+            truth_labels_end = truth_labels[sum(comm_sizes)*(layers-1):]
+            if pad:
+                truth_labels = truth_labels_tip + truth_labels +truth_labels_end
+            
                 
     elif community_operation == 'merge': ##only for two layers
         truth_labels = []
@@ -202,56 +235,63 @@ def information_recovery(pred_labels, comm_size, truth, interlayers, other_param
             ARI1[i][j] = adjusted_rand_score(true_labels, list(pred_labels[i*len(other_parameter)+j].astype(int)))
             F1S1[i][j] = f1_score(true_labels, list(pred_labels[i*len(other_parameter)+j].astype(int)), average = 'weighted')
         
-    fig,ax = plt.subplots(1,3, figsize = (50, 25))
+    fig,ax = plt.subplots(1,3, figsize = (85, 50))
+    normalize = Normalize(vmin=0, vmax=1)
     c = ax[0].imshow(NMI1, origin = 'lower', 
                      interpolation = 'none', 
                      cmap = 'Reds', aspect = 'auto',
+                     norm = normalize,
                      extent = [other_parameter[0]-0.005, other_parameter[-1]+0.005, interlayers[0]-0.005, interlayers[-1]+0.005])
 
     c = ax[1].imshow(ARI1, origin = 'lower', 
                      interpolation = 'none', 
                      cmap = 'Reds', aspect = 'auto',
+                     norm = normalize,
                      extent = [other_parameter[0]-0.005, other_parameter[-1]+0.005, interlayers[0]-0.005, interlayers[-1]+0.005])
 
     c = ax[2].imshow(F1S1, origin = 'lower',
                      interpolation = 'none', 
                      cmap = 'Reds', aspect = 'auto',
+                     norm = normalize,
                      extent = [other_parameter[0]-0.005, other_parameter[-1]+0.005, interlayers[0]-0.005, interlayers[-1]+0.005])
 
-    ax[0].set_title('NMI wrt %s Ground Truth'%truth, fontsize = 30)
-    ax[0].set_xlabel('Thresholds or Resolutions', fontsize = 25)
-    ax[0].set_ylabel('Interlayers', fontsize = 25)
-    ax[0].set_xticks(other_parameter)
+    ax[0].set_title('NMI wrt %s Ground Truth'%truth, fontsize = 60)
+    ax[0].set_xlabel('Threshold', fontsize = 50)
+    ax[0].set_ylabel('Interlayer Coupling', fontsize = 50)
+    ax[0].set_xticks([i*0.1 for i in range(9)])
     ax[0].set_yticks(interlayers)
-    ax[0].tick_params(axis = 'both', labelsize = 15)
+    ax[0].tick_params(axis = 'both', labelsize = 30)
 
-    ax[1].set_title('ARI wrt %s Ground Truth'%truth, fontsize = 30)
-    ax[1].set_xlabel('Thresholds or Resolutions', fontsize = 25)
-    ax[1].set_ylabel('Interlayers', fontsize = 25)
-    ax[1].set_xticks(other_parameter)
+    ax[1].set_title('ARI wrt %s Ground Truth'%truth, fontsize = 60)
+    ax[1].set_xlabel('Threshold', fontsize = 50)
+    ax[1].set_ylabel('Interlayer Coupling', fontsize = 50)
+    ax[1].set_xticks([i*0.1 for i in range(9)])
     ax[1].set_yticks(interlayers)
-    ax[1].tick_params(axis = 'both', labelsize = 15)
+    ax[1].tick_params(axis = 'both', labelsize = 30)
 
-    ax[2].set_title('F1-Score wrt %s Ground Truth'%truth, fontsize = 30)
-    ax[2].set_xlabel('Thresholds or Resolutions', fontsize = 25)
-    ax[2].set_ylabel('Interlayers', fontsize = 25)
-    ax[2].set_xticks(other_parameter)
+    ax[2].set_title('F1-Score wrt %s Ground Truth'%truth, fontsize = 60)
+    ax[2].set_xlabel('Threshold', fontsize = 50)
+    ax[2].set_ylabel('Interlayer Coupling', fontsize = 50)
+    ax[2].set_xticks([i*0.1 for i in range(9)])
     ax[2].set_yticks(interlayers)
-    ax[2].tick_params(axis = 'both', labelsize = 15)
+    ax[2].tick_params(axis = 'both', labelsize = 30)
     
     cbar = fig.colorbar(c, ax = ax.flat, orientation = 'horizontal')
-    cbar.ax.tick_params(labelsize = 20) 
+    cbar.ax.tick_params(labelsize = 40) 
     
-def display_truth(comm_sizes, community_operation):
-    if community_operation == 'grow':
+    return(fig,ax)
+    
+def display_truth(comm_sizes, community_operation, ax = None):
+    if community_operation == 'grow' or community_operation == 'contract':
         n = sum(comm_sizes)
         layers = len(comm_sizes)
         l = layers + 2
     
         scattered_truth = generate_ground_truth(comm_sizes, 
-                                                method = 'scattered', 
+                                                method = 'integrated', 
                                                 pad = True, 
                                                 community_operation = community_operation)
+        
         number_of_colors = max(scattered_truth)+1
     
         membership = [[] for i in range(number_of_colors)]
@@ -260,7 +300,8 @@ def display_truth(comm_sizes, community_operation):
             node_id = i%n
             membership[m].append((node_id,time))
 
-        fig,ax = plt.subplots(1,2, figsize = (16,8))
+        if ax is None: 
+            fig,ax = plt.subplots(1,2, figsize = (16,8))
 
         comms = np.zeros((n,layers+2))
 
@@ -278,10 +319,10 @@ def display_truth(comm_sizes, community_operation):
         ax[0].tick_params(axis = 'both', labelsize = 15)
         ax[0].set_xlabel('Layers (Time)', fontsize = 18)
         ax[0].set_ylabel('Neuron ID', fontsize = 18)
-        ax[0].set_title('Scattered Ground Truth with %d Communities' %len(color), fontsize = 20)
+        ax[0].set_title('Integrated Ground Truth with %d Communities' %len(color), fontsize = 20)
     
         integrated_truth = generate_ground_truth(comm_sizes, 
-                                                 method = 'integrated', 
+                                                 method = 'scattered', 
                                                  pad = True, 
                                                  community_operation = community_operation)
         number_of_colors = max(integrated_truth)+1
@@ -307,7 +348,7 @@ def display_truth(comm_sizes, community_operation):
         ax[1].tick_params(axis = 'both', labelsize = 15)
         ax[1].set_xlabel('Layers (Time)', fontsize = 18)
         ax[1].set_ylabel('Neuron ID', fontsize = 18)
-        ax[1].set_title('Integrated Ground Truth with %d Communities' %len(color), fontsize = 20)
+        ax[1].set_title('Scattered Ground Truth with %d Communities' %len(color), fontsize = 20)
     
     elif community_operation == 'merge':
         n = sum(comm_sizes[0])
@@ -354,7 +395,7 @@ def create_time_series(operation, community_sizes, spiking_rates, spy = True, wi
     layers = len(community_sizes)
     total_duration = int(layers*binsize)
     
-    if operation == 'grow':    
+    if operation == 'grow' or operation == 'contract':    
         num_neurons = int(sum(community_sizes))
         spikes = np.zeros((num_neurons,total_duration))
         master_spike = np.zeros((1,total_duration))
@@ -388,7 +429,9 @@ def create_time_series(operation, community_sizes, spiking_rates, spy = True, wi
                     try:spikes[j,(i*binsize)+k+jitt] = 1
                     except:spikes[j,k] = 1
             neuron_count = neuron_count + community_sizes[i]
-            
+        if operation =='contract':
+            spikes = np.flip(spikes,1)
+        
     if operation == 'merge':
         num_neurons = int(sum(community_sizes[0]))
         
@@ -426,6 +469,72 @@ def create_time_series(operation, community_sizes, spiking_rates, spy = True, wi
         ax.tick_params(axis = 'both', labelsize = 20)
             
     return(spikes)
+
+def community_consensus_iterative(C):
+    ## function finding the consensus of a given set of partitions. refer to the paper:
+    ## 'Robust detection of dynamic community structure in networks', Danielle S. Bassett, 
+    ## Mason A. Porter, Nicholas F. Wymbs, Scott T. Grafton, Jean M. Carlson et al.
+        
+        
+    npart,m  = C.shape 
+    C_rand3 = np.zeros((C.shape)) #permuted version of C
+    X = np.zeros((m,m)) #Nodal association matrix for C
+    X_rand3 = X # Random nodal association matrix for C_rand3
+
+        # randomly permute rows of C
+    for i in range(npart):
+        C_rand3[i,:] = C[i,np.random.permutation(m)]
+        for k in range(m):
+            for p in range(m):
+                if int(C[i,k]) == int(C[i,p]): X[p,k] = X[p,k] + 1 #(i,j) is the # of times node i and j are assigned in the same comm
+                if int(C_rand3[i,k]) == int(C_rand3[i,p]): X_rand3[p,k] = X_rand3[p,k] + 1 #(i,j) is the # of times node i and j are expected to be assigned in the same comm by chance
+        #thresholding
+        #keep only associated assignments that occur more often than expected in the random data
+
+    X_new3 = np.zeros((m,m))
+    X_new3[X>(np.max(np.triu(X_rand3,1)))/2] = X[X>(np.max(np.triu(X_rand3,1)))/2]
+        
+        ##turn thresholded nodal association matrix into igraph
+    edge_list = []
+    weight_list = []
+    for k,e in enumerate(np.transpose(np.nonzero(X_new3))):
+        i,j = e[0], e[1]
+        pair = (i,j)
+        edge_list.append(pair)
+        weight_list.append(X_new3[i][j])
+        
+    G = ig.Graph()
+    G.add_vertices(m)
+    G.add_edges(edge_list)
+    G.es['weight'] = weight_list
+    G.vs['id'] = list(range(m))
+        
+    optimiser = la.Optimiser()
+    partition = la.ModularityVertexPartition(G, weights = 'weight')
+    diff = optimiser.optimise_partition(partition, n_iterations = -1)
+        
+    return(partition)
+
+def consensus_display(partition, n, t):
+    membership = [[] for i in range(partition._len)]
+    for i,m in enumerate(partition._membership):
+        time = floor(i/n)
+        node_id = i%n
+        membership[m].append((node_id,time))
+
+    number_of_colors = len(membership)
+
+    comms = np.zeros((n,t))
+
+    color = ["#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(number_of_colors)]
+
+    for i, l in enumerate(membership):
+        for j,k in enumerate(l):
+            comms[k[0]][k[1]] = i
+
+    cmap = mpl.colors.ListedColormap(color)
+    
+    return(comms, cmap, color)
 
 
 # In[ ]:

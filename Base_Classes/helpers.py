@@ -145,6 +145,30 @@ def spike_count(spikes, ax, num_bins = None, t_min = None, t_max = None):
     ax.set_ylabel("Number of Neurons", fontsize = 22)
     return(n,bins)
 
+def find_repeated(l):
+    k = []
+    repeated = []
+    for i in l:
+        if i not in k:
+            k.append(i)
+        else:
+            if i not in repeated:
+                repeated.append(i)
+    return(repeated)
+
+def get_repeated_indices(l):
+    repeated = find_repeated(l)
+    k = []
+    for r in repeated:
+        first = l.index(r)
+        reversed_l = l[::-1]
+        last = len(l) - reversed_l.index(r)
+        k.append((first,last))
+    return(k)
+
+def getOverlap(a, b):
+    return max(0, min(a[1], b[1]) - max(a[0], b[0]))
+
 
 # In[ ]:
 
@@ -218,6 +242,47 @@ def generate_ground_truth(comm_sizes, method = 'scattered', pad = False, communi
             l1 = truth_labels[:sum(comm_sizes[0])]
             l2 = truth_labels[sum(comm_sizes[0]):]
             truth_labels = l1 + truth_labels +l2
+     
+    elif community_operation == 'transient':
+        truth_labels = []
+        maks = 0
+        layers = len(comm_sizes)
+        num_neurons = sum(comm_sizes[0])
+        for i,f in enumerate(comm_sizes[0]):
+            truth_labels = truth_labels + [i for j in range(f)]
+        for k in range(1,layers):
+            maks = max(truth_labels)
+            for i,f in enumerate(comm_sizes[k]):
+                truth_labels = truth_labels + [i + maks+1 for j in range(f)]
+        
+        for l in range(1,layers):
+            current = get_repeated_indices(truth_labels[l*num_neurons:(l+1)*num_neurons])
+            prev = get_repeated_indices(truth_labels[(l-1)*num_neurons:(l)*num_neurons])
+            for c in current:
+                for p in prev:
+                    O = getOverlap(p,c)
+                    if O/(c[1]-c[0]) >= 1/2:
+                        truth_labels[l*num_neurons+c[0]:l*num_neurons+c[1]] = [truth_labels[(l-1)*num_neurons+p[0]]]*(c[1]-c[0])
+            
+            for i in range(num_neurons):
+                try:
+                    if truth_labels[l*num_neurons+i] == truth_labels[l*num_neurons+i+1] or truth_labels[l*num_neurons+i] == truth_labels[l*num_neurons+i-1]: pass
+                    else:
+                        if truth_labels[(l-1)*num_neurons+i] == truth_labels[(l-1)*num_neurons+i+1] or truth_labels[(l-1)*num_neurons+i] == truth_labels[(l-1)*num_neurons+i-1]: pass
+                        else:
+                            truth_labels[l*num_neurons + i] = truth_labels[(l-1)*num_neurons+ i]
+                except:
+                    if truth_labels[l*num_neurons+i] == truth_labels[l*num_neurons+i-1]: pass
+                    else:
+                        if truth_labels[(l-1)*num_neurons+i] == truth_labels[(l-1)*num_neurons+i+1] or truth_labels[(l-1)*num_neurons+i] == truth_labels[(l-1)*num_neurons+i-1]: pass
+                        else:
+                            truth_labels[l*num_neurons + i] = truth_labels[(l-1)*num_neurons+ i]
+                        
+        if pad:
+            l1 = truth_labels[:sum(comm_sizes[0])]
+            l2 = truth_labels[sum(comm_sizes[0])*(layers-1):]
+            truth_labels = l1 + truth_labels +l2
+            
     return(truth_labels)
 
 def information_recovery(pred_labels, comm_size, truth, interlayers, other_parameter, com_op):
@@ -350,12 +415,12 @@ def display_truth(comm_sizes, community_operation, ax = None):
         ax[1].set_ylabel('Neuron ID', fontsize = 18)
         ax[1].set_title('Scattered Ground Truth with %d Communities' %len(color), fontsize = 20)
     
-    elif community_operation == 'merge':
+    elif community_operation == 'merge' or community_operation == 'transient':
         n = sum(comm_sizes[0])
         layers = len(comm_sizes)
         l = layers + 2
         
-        truth = generate_ground_truth(comm_sizes, pad = True, community_operation = 'merge')
+        truth = generate_ground_truth(comm_sizes, pad = True, community_operation = community_operation)
         
         number_of_colors = max(truth)+1
     
@@ -383,7 +448,41 @@ def display_truth(comm_sizes, community_operation, ax = None):
         ax.tick_params(axis = 'both', labelsize = 15)
         ax.set_xlabel('Layers (Time)', fontsize = 18)
         ax.set_ylabel('Neuron ID', fontsize = 18)
-        ax.set_title('Ground Truth with %d Communities' %len(color), fontsize = 20)
+        ax.set_title('Ground Truth with %d Communities' %len(np.unique(truth)), fontsize = 20)
+        
+        
+def space_comms(comm_size):
+    lll = []
+    rrr = []
+    for c in comm_size:
+        for i in range(random.randint(8,2*sum(comm_size))):
+            lll.append(1)
+            rrr.append(random.randint(10,30))
+        lll.append(c)
+        rrr.append(random.randint(10,30))
+    return(lll,rrr)
+
+def generate_transient(comm_per_layer):
+    layer = len(comm_per_layer)
+    comm_size = []
+    for i in range(layer):
+        comm_size.append([int(np.random.power(3/2)*20)  for j in range(comm_per_layer[i])])
+        
+    num_neurons = int(max([sum(comm_size[i]) for i in range(len(comm_size))])*(2))
+    
+    comm_sizes = []
+    spike_rate = []
+    for c in comm_size:
+        flag = True
+        while flag:
+            temp_size, temp_rate = space_comms(c)
+            if sum(temp_size) < num_neurons:
+                temp_rate = temp_rate + [random.randint(10,30) for j in range(num_neurons-sum(temp_size))]
+                temp_size = temp_size + [1 for i in range(num_neurons-sum(temp_size))]
+                comm_sizes.append(temp_size)
+                spike_rate.append(temp_rate)
+                flag = False
+    return(comm_sizes, spike_rate, num_neurons)
 
 
 # In[ ]:
@@ -432,7 +531,7 @@ def create_time_series(operation, community_sizes, spiking_rates, spy = True, wi
         if operation =='contract':
             spikes = np.flip(spikes,1)
         
-    if operation == 'merge':
+    if operation == 'merge' or operation == 'transient':
         num_neurons = int(sum(community_sizes[0]))
         
         spikes = np.zeros((num_neurons,total_duration))

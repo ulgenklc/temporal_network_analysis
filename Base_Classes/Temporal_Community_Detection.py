@@ -1,877 +1,980 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
-import numpy as np
-from math import floor
-import random
-
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-
-from scipy.ndimage import gaussian_filter1d
-from scipy.stats import zscore
-from scipy.spatial.distance import jensenshannon
-
-import leidenalg as la
-import igraph as ig
-
-from infomap import Infomap, MultilayerNode
-
-import tensorly as tl
-from tensorly.decomposition import non_negative_parafac
-
-
-# In[ ]:
-
-
-class temporal_network:
-    """
-    Temporal network object to run dynamic community detection and other multilayer network diagnostics on. 
-    Temporal network is a memoryless multiplex network where every node exists in every layer. 
-    
-    Attributes
-    ------------
-    temporal_network.size: int
-        Number of nodes in any given layer.
-    temporal_network.length: int
-        Total number of layers.
-    temporal_network.nodes: list
-        A list of node ids starting from 0 to ``size-1``.
-    temporal_network.windowsize: int
-        Assuming that temporal network is created from a continous time-series data, windowsize is the size
-        of the windows we are splitting the time-series into.
-    temporal_network.supra_adjacency: array, ``size*length x size*length``
-        The supra adjacency matrix to encode the connectivity information of the multilayer network.
-    temporal_network.list_adjacency: list, [array1, array2, ...]
-        A list of arrays of length ``length`` where each array is ``size x size`` encoding the connectivity 
-        information of each layer.
-    temporal_network.edge_list: list, [list1, list2, ...]
-        A list of length ``length`` of lists where each element of the sublist is a 4-tuple (i,j,w,t) indicating
-        there is an edge from node i to node j of nonzero weight w in the layer t. So, every quadruplet in the
-        t'th sublist in ``edge_list`` has 4th entry t.
-    
-    Parameters
-    ------------
-    size: int
-        Number of nodes in any given layer.
-    length: int
-        Total number of layers.
-    window_size: int
-        Size of the windows the time series will be divided into.
-    data: str
-        ``temporal_network`` accepts three types of connectivity input, ``supra_adjacency``, ``list_adjacency`` 
-        and ``edge_list`` (see the attributes). So, we must specify which one of these types we are submitting 
-        the connectivity information to the ``temporal_network``. Accordingly, this parameter can be one of the 
-        ``supra__adjacency``, ``list__adjacency`` and ``edge__list``, respectively.
-        
-        Once the data type is understood, object converts the given input into the other two data types so that
-        if it needs to use one of the other types(it is easier to work with ``list_adjacency`` for example, but 
-        some helper functions from different libraries such as ``igraph``, processes ``edge_list`` better), 
-        it can switch back and forth quicker.
-    **kwargs:
-        supra_adjacency: array, ``size*length x size*length``
-            The supra adjacency matrix to encode the connectivity information of the multilayer network. Should 
-            be provided if ``data = supra__adjacency``.
-    **kwargs:
-        list_adjacency: list, [array1, array2, ...]
-            A list of arrays of length ``length`` where each array is ``size x size`` encoding the connectivity 
-            information of each layer. Should be provided if ``data = list__adjacency``.
-    **kwargs:
-        edge_list: list, [list1, list2, ...]
-            A list of length ``length`` of lists where each element of the sublist is a 4-tuple (i,j,w,t) 
-            indicating there is an edge from node i to node j of nonzero weight w in the layer t. So, every 
-            quadruplet in the t'th sublist in ``edge_list`` has 4th entry t. Should be provided if 
-            ``data = edge__list``.
-    **kwargs:
-        omega: int
-            Interlayer edge coupling strength. Should be provided if data is ``list__adjacency`` or 
-            ``edge__list``. For now, we will assume all the coupling is going to be diagonal with a constant 
-            strength.
-            
-            TODO: extend omega to a vector(for differing interlayer diagonal coupling strengths) and to
-            a matrix(for non-diagonal coupling).
-    **kwargs:
-        kind:
-            Interlayer coupling type. Can be either ``ordinal`` where only the adjacent layers are coupled or 
-            ``cardinal`` where all layers are pairwise coupled with strength ``omega``. Should be provided if 
-            data is ``list__adjacency`` or ``edge__list``.
-    
-    """
-    def __init__(self, size, length, window_size, data, **kwargs):
-        
-        if length < 1: raise ValueError('Object should be a multilayer network with at least 2 layers')
-        if size < 3: raise ValueError('Layers must have at least 3 nodes')
-        
-        self.size = size # number of nodes in every layer
-        self.length = length # number of layers
-        self.nodes = [i for i in range(self.size)]
-        self.windowsize = window_size
-                    
-        if  data == 'supra__adjacency':
-            self.supra_adjacency = kwargs['supra_adjacency']
-            list_adjacency = [ [] for i in range(length) ]
-            
-            for i in range(self.length):
-                list_adjacency[i] = self.supra_adjacency[i*self.size:(i+1)*self.size,i*self.size:(i+1)*self.size]
-            
-            self.list_adjacency = list_adjacency
-            
-            edge_list = []
-            for i in range(self.length):
-                A = self.list_adjacency[i]
-                firing = np.transpose(np.nonzero(A))
-                for j,m in enumerate(firing):
-                    quadreplet =(m[0],m[1],A[m[0],m[1]],i)
-                    edge_list.append(quadreplet)
-            self.edgelist = edge_list
-                
-        
-        elif data == 'edge__list':
-            self.edgelist = kwargs['edge_list']
-            supra_adjacency = np.zeros((self.size*self.length,self.size*self.length))
-            list_adjacency = [ [] for i in range(self.length) ]
-            for q in range(self.length):
-                list_adjacency[q]=np.zeros((self.size,self.size))
-            
-            for k,e in enumerate(self.edgelist):
-                i,j,w,t = e[0], e[1], e[2],e[3]
-                supra_adjacency[self.size*(t)+i][self.size*(t)+j] = w
-                list_adjacency[t][i][j] = w
-
-        
-            ##filling off-diagonal blocks
-            if kwargs['kind'] == 'ordinal':
-                for n in range(self.size*(self.length-1)):
-                    supra_adjacency[n][n+self.size] = kwargs['omega']
-                    supra_adjacency[n+self.size][n] = kwargs['omega']
-                
-            elif kwargs['kind'] == 'cardinal':
-                i = 0
-                while self.length-i != 0:
-                    i = i+1
-                    for n in range(self.size*(self.length-i)):
-                        supra_adjacency[n][n+i*self.size] = kwargs['omega']
-                        supra_adjacency[n+i*self.size][n] = kwargs['omega']
-            
-            self.supra_adjacency = supra_adjacency
-            self.list_adjacency = list_adjacency
-            
-        elif data == 'list__adjacency':
-            self.list_adjacency = kwargs['list_adjacency']
-            supra_adjacency = np.zeros((self.size*self.length,self.size*self.length))
-            
-            for i in range(self.length):
-                supra_adjacency[i*self.size:(i+1)*self.size,i*self.size:(i+1)*self.size] = self.list_adjacency[i]
-            
-            ##filling off-diagonal blocks
-            if kwargs['kind'] == 'ordinal':
-                for n in range(self.size*(self.length-1)):
-                    supra_adjacency[n][n+self.size] = kwargs['omega']
-                    supra_adjacency[n+self.size][n] = kwargs['omega']
-                
-            elif kwargs['kind'] == 'cardinal':
-                i = 0
-                while self.length-i != 0:
-                    i = i+1
-                    for n in range(self.size*(self.length-i)):
-                        supra_adjacency[n][n+i*self.size] = kwargs['omega']
-                        supra_adjacency[n+i*self.size][n] = kwargs['omega']
-            
-            self.supra_adjacency = supra_adjacency
-            
-            edge_list = []
-            for i in range(self.length):
-                A = self.list_adjacency[i]
-                firing = np.transpose(np.nonzero(A))
-                for j,m in enumerate(firing):
-                    quadreplet =(m[0],m[1],A[m[0],m[1]],i)
-                    edge_list.append(quadreplet)
-            self.edgelist = edge_list
-            
-    def aggragate(self, normalized = True):
-        t = self.length
-        n = self.size
-        aggragated = np.zeros((n,n))
-        
-        for i,c in enumerate(self.list_adjacency):
-            aggragated = aggragated + c
-            
-        if normalized: return (aggragated/t)
-        else: return (aggragated)
-    
-    def binarize(self, array, thresh = None):
-        n,t = array.shape
-        binary_spikes = np.zeros(array.shape)
-        for i in range(n):
-            for j in range(t):
-                if thresh is None:
-                    if array[i][j] <= 0: pass
-                    else: binary_spikes[i][j] = 1
-                else:
-                    if array[i][j] < thresh: array[i][j] = 0
-                    else: binary_spikes[i][j] = 1
-        return(binary_spikes)
-    
-    def threshold(self, array, thresh):
-        n,t = array.shape
-        thresholded_array = np.copy(array)
-        for i in range(n):
-            for j in range(t):
-                if array[i][j] < thresh: thresholded_array[i][j] = 0
-                else: pass
-        return(thresholded_array)
-    
-    def bin_time_series(self, array, gaussian = True, **kwargs):
-        #input: nxt matrix 
-        #returns: binned time series i.e. l x n x binsize
-        
-        binsize = self.windowsize
-        n = array.shape[0] # number of neurons
-        totalsize = array.shape[1] # total duration of spikes
-        gauss_array = np.zeros((n,totalsize))
-        l = int(totalsize/binsize) # number of resulting layers
-        
-        if gaussian:
-            for i in range(n):
-                gauss_array[i] = gaussian_filter(array[i],kwargs['sigma'])
-        else: gauss_array= array
-            
-        A = np.zeros((l,n,binsize))
-        for i in range(l):
-            A[i] = gauss_array[:,i*binsize:(i+1)*binsize]
-        return(A)
-    
-    def edgelist2edges(self):# helper to create igraphs
-        T = self.length
-        all_edges = [[] for i in range(T)]
-        all_weights = [[] for i in range(T)]
-        dtype = [('row',int),('column',int),('weight',float),('layer',int)]
-        for k,e in enumerate(np.sort(np.array(self.edgelist, dtype=dtype),order='layer')):
-            i,j,w,t = e[0], e[1], e[2],e[3]
-            pair = (i,j)
-            all_edges[t].append(pair)
-            all_weights[t].append(w)
-        return (all_edges, all_weights)
-    
-    def neighbors(self, node_id, layer):
-        
-        if node_id > self.size: return('Invalid node ID')
-        if layer > self.length: return('Invalid layer')
-        neighbors = []
-        
-        for k,e in enumerate(self.edgelist):
-            i,j,w,t = e[0],e[1],e[2],e[3]
-            if t != layer:pass
-            else:
-                if i != node_id:pass
-                else:neighbors.append(j)
-                    
-        return(neighbors)
-    
-    def average_degree(self,layer):
-        
-        average_degree = 0
-        
-        for i in range(self.size):
-            average_degree = average_degree + len(self.neighbors(i,layer))
-        
-        return(average_degree/(2*self.size))
-    
-    def get_attrs_or_nones(self, seq, attr_name):
-        try:
-            return seq[attr_name]
-        except KeyError:
-            return [None] * len(seq)
-    
-    def disjoint_union_attrs(self, graphs):
-        G = ig.Graph.disjoint_union(graphs[0], graphs[1:])
-        vertex_attributes = set(sum([H.vertex_attributes() for H in graphs], []))
-        edge_attributes = set(sum([H.edge_attributes() for H in graphs], []))
-
-        for attr in vertex_attributes:
-            attr_value = sum([self.get_attrs_or_nones(H.vs, attr) for H in graphs], [])
-            G.vs[attr] = attr_value
-        for attr in edge_attributes:
-            attr_value = sum([self.get_attrs_or_nones(H.es, attr) for H in graphs], [])
-            G.es[attr] = attr_value
-        return G
-
-    def time_slices_to_layers(self, graphs, interlayer_indices, interlayer_weights,
-                              interslice_weight=1,
-                              slice_attr='slice',
-                              vertex_id_attr='id',
-                              edge_type_attr='type',
-                              weight_attr='weight'):
-    
-        G_slices = ig.Graph.Tree(len(graphs), 1, mode=ig.TREE_UNDIRECTED)
-        G_slices.es[weight_attr] = interslice_weight
-        G_slices.vs[slice_attr] = graphs
-    
-        return self.slices_to_layers(G_slices, interlayer_indices, interlayer_weights, slice_attr,vertex_id_attr,edge_type_attr,weight_attr)
-
-    def slices_to_layers(self, G_coupling, interlayer_indices, interlayer_weights,
-                         slice_attr='slice',
-                         vertex_id_attr='id',
-                         edge_type_attr='type',
-                         weight_attr='weight'):
-        
-        if not slice_attr in G_coupling.vertex_attributes():
-            raise ValueError("Could not find the vertex attribute {0} in the coupling graph.".format(slice_attr))
-
-        if not weight_attr in G_coupling.edge_attributes():
-            raise ValueError("Could not find the edge attribute {0} in the coupling graph.".format(weight_attr))
-
-        # Create disjoint union of the time graphs
-        for v_slice in G_coupling.vs: 
-            H = v_slice[slice_attr]
-            H.vs[slice_attr] = v_slice.index
-            if not vertex_id_attr in H.vertex_attributes():
-                raise ValueError("Could not find the vertex attribute {0} to identify nodes in different slices.".format(vertex_id_attr ))
-            if not weight_attr in H.edge_attributes():
-                H.es[weight_attr] = 1
-
-        G = self.disjoint_union_attrs(G_coupling.vs[slice_attr])
-        G.es[edge_type_attr] = 'intraslice'
-
-        for i in range(len(G_coupling.vs[slice_attr])-1):
-            v_slice = G_coupling.vs[i]
-            nodes_v = sorted([v for v in G.vs if v[slice_attr] == v_slice.index and v[vertex_id_attr] in G.vs.select(lambda v: v[slice_attr]==v_slice.index)[vertex_id_attr]], key=lambda v: v[vertex_id_attr])
-            for j,v in enumerate(nodes_v):
-                w, nbr = self.neighborhood_flow(i, j, interlayer_indices, interlayer_weights, thresh = 0.2)
-                edges = []
-                a = G.vs[int(i*self.size + j)]
-                for n in nbr:
-                    b = G.vs[int((i+1)*self.size + n)]
-                    edges.append((a,b))
-                e_start = G.ecount()
-                G.add_edges(edges)
-                e_end = G.ecount()
-                e_idx = range(e_start,e_end)
-                G.es[e_idx][weight_attr] = w
-                G.es[e_idx][edge_type_attr] = 'interslice'
-
-        # Convert aggregate graph to individual layers for each time slice.
-        G_layers = [None]*G_coupling.vcount()
-        for v_slice in G_coupling.vs:
-            H = G.subgraph_edges(G.es.select(_within=[v.index for v in G.vs if v[slice_attr] == v_slice.index]), delete_vertices=False)
-            H.vs['node_size'] = [1 if v[slice_attr] == v_slice.index else 0 for v in H.vs]
-            G_layers[v_slice.index] = H
-
-        # Create one graph for the interslice links.
-        G_interslice = G.subgraph_edges(G.es.select(type_eq='interslice'), delete_vertices=False)
-        G_interslice.vs['node_size'] = 0
-    
-        return G_layers, G_interslice, G
-    
-    def create_igraph(self):
-        T = self.length
-        N = self.size
-        G = []
-        edges = self.edgelist2edges()[0]
-        weights = self.edgelist2edges()[1]
-        for i in range(T):
-            G.append(ig.Graph())
-            G[i].add_vertices(N)
-            G[i].add_edges(edges[i])
-            G[i].es['weight'] = weights[i]
-            G[i].vs['id'] = list(range(N))
-            G[i].vs['node_size'] = 0
-        return(G)
-
-    
-    def leiden(self, G, interslice, resolution):
-        
-        layers, interslice_layer, G_full = la.time_slices_to_layers(G, interslice_weight = interslice)
-        
-        partitions = [la.RBConfigurationVertexPartition(H, 
-                                            weights = 'weight', 
-                                            resolution_parameter = resolution) for H in layers]
-        
-        interslice_partition = la.RBConfigurationVertexPartition(interslice_layer, 
-                                                                 weights = 'weight',
-                                                                 resolution_parameter = 0)
-                                                     
-        optimiser = la.Optimiser()
-        
-        diff = optimiser.optimise_partition_multiplex(partitions + [interslice_partition])
-
-        return(partitions, interslice_partition)
-    
-    def infomap(self, inter_edge, threshold, update_method = None, **kwargs):
-        '''
-        Infomap helper function. 
-        '''
-        im = Infomap("--two-level --directed --silent")
-            ######### Make Network
-            ## add intra edges
-        thresholded_adjacency = []
-        for l in range(self.length):
-            thresholded_adjacency.append(self.threshold(self.list_adjacency[l], thresh = threshold))
-            for n1,e in enumerate(thresholded_adjacency[l]):## list of length 2 corresponding to the adjacency matrices in each layer
-                for n2,w in enumerate(e):
-                    s = MultilayerNode(layer_id = l, node_id = n1)
-                    t = MultilayerNode(layer_id = l, node_id = n2)
-                    im.add_multilayer_link(s, t, w)
-                    im.add_multilayer_link(t, s, w)
-                
-        ## add inter edges
-        if update_method == 'local' or update_method == 'global': 
-        
-            updated_interlayer = self.update_interlayer(kwargs['spikes'], 0, inter_edge, 0.1, update_method) 
-        
-            for l in range(self.length-1):
-                for k in range(self.size):# number of nodes which is 60 in the multilayer network
-                    s = MultilayerNode(layer_id = l, node_id = k)
-                    t = MultilayerNode(layer_id = l+1, node_id = k)
-                    im.add_multilayer_link(s, t, updated_interlayer[l][k])
-                    im.add_multilayer_link(t, s, updated_interlayer[l][k])
-                
-        elif update_method == 'neighborhood':
-        
-            updated_interlayer_indices, updated_interlayer_weights = self.get_normalized_outlinks(thresholded_adjacency, inter_edge)
-            for l in range(self.length-1):
-                for k in range(self.size):
-                    w, nbr = self.neighborhood_flow(l, k, updated_interlayer_indices, updated_interlayer_weights, threshold)
-                    for n in nbr:
-                        s = MultilayerNode(layer_id = l, node_id = k)
-                        t = MultilayerNode(layer_id = l+1, node_id = n)
-                        im.add_multilayer_link(s, t, w)
-                        im.add_multilayer_link(t, s, w)
-                    
-        elif update_method == None:
-            for l in range(self.length-1):
-                for k in range(self.size):# number of nodes which is 60 in the multilayer network
-                    s = MultilayerNode(layer_id = l, node_id = k)
-                    t = MultilayerNode(layer_id = l+1, node_id = k)
-                    im.add_multilayer_link(s, t, inter_edge)
-                    im.add_multilayer_link(t, s, inter_edge)
-        
-        im.run()
-        return(im)
-    
-    def membership(self, interslice_partition): ## returns the community assignments from the leiden algorithm as
-        ##                                       tuple (n,t) n is the node id t is the layer that node is in
-        n = self.size
-        membership = [[] for i in range(interslice_partition._len)]
-        for i,m in enumerate(interslice_partition._membership):
-            time = floor(i/n)
-            node_id = i%n
-            membership[m].append((node_id,time))
-        return(membership, len(membership))
-    
-    def community(self, membership, ax):
-        n = self.size
-        t = self.length
-        number_of_colors = len(membership)
-
-        comms = np.zeros((n,t))
-
-        color = ["#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(number_of_colors)]
-
-        for i, l in enumerate(membership):
-            for j,k in enumerate(l):
-                comms[k[0]][k[1]] = i
-
-        cmap = mpl.colors.ListedColormap(color)
-
-        ax.imshow(comms, interpolation = 'none', cmap = cmap, aspect = 'auto', origin = 'lower', extent = [-0.5,t-0.5,-0.5,n-0.5])
-        return(comms, color)
-    
-    def raster_plot(self, spikes, ax, color = None, **kwargs):#plots the raster plot of the spike activity on a 
-        # given axis 'comm_assignment' and 'color' arguments are the outputs of the function 'community' 
-        # and they display the community assignment of the spiking activity if provided. if not, raster 
-        # ais going to be plotted blue
-        binsize = self.windowsize
-        binarized_spikes = self.binarize(spikes)
-        binned_spikes = self.bin_time_series(binarized_spikes, gaussian = False)
-        l,n,t = binned_spikes.shape
-                    
-        sp = np.nonzero(binned_spikes)
-        
-        if color is None: 
-            col = [0]*l
-            clr = [col for i in range(n)]
-            color = ['#0000ff']
-        else: clr = kwargs['comm_assignment']
-        
-        cmap = mpl.colors.ListedColormap(color)
-        
-        for i in range(len(sp[0])):
-            ax.scatter(sp[0][i]*binsize+sp[2][i],  sp[1][i], 
-                       s = 5, 
-                       c = color[int(clr[sp[1][i]][sp[0][i]])], 
-                       marker = 'x', 
-                       cmap = cmap)
-            
-        ax.set_title('Raster Plot', fontsize = 20)
-        ax.set_xlabel('Time (Frames)', fontsize = 15)
-        ax.set_ylabel('Neuron ID', fontsize = 15)
-        ax.set_xticks([t*i for i in range(l+1)])
-        ax.set_yticks([5*i for i in range(int(n/5)+1)]+[n])
-        ax.tick_params(axis = 'x', labelsize = 10)
-        ax.tick_params(axis = 'y', labelsize = 13)
-    
-    def trajectories(self, thresh = 0.9, node_id = None, community = None, edge_color = True, pv = None):
-        #function graphing the edge trajcetories of the temporal
-        ## network. Tresh is for thresholding the paths that are strongere than the given value.
-        ## if node_id is None, function is going to graph all of the nodes's trajectories.
-        ## community argument is for indicating the community assignment
-        ## of the nodes if exists, if not pass along None.
-        ## edge_color
-        ## pv == pass a list of pv cell indices or None --dashes the pv cells
-        
-        layers = []
-
-        if edge_color == True: ed_color = ["#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(self.length)]
-        else: e_color = 'black' #["#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(self.length)]
-
-            
-        if community is None: node_color = 'r'     
-        else:
-            colors = ["#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(int(np.max(community)))]
-            comap = mpl.colors.ListedColormap(colors)
-            node_color = community
-            norm = plt.Normalize(0,int(np.max(community)))
-
-        if node_id == None:
-            for k in self.nodes:
-                for j in range(1,self.length):
-                    for i in self.neighbors(k, j):
-                        if self.list_adjacency[j][k][i] > thresh:
-                            layers.append((j-1, j))
-                            layers.append((k, i))
-                            try: layers.append('%s' %ed_color[j])
-                            except: layers.append('%s'%e_color)
-                            
-            fig,ax = plt.subplots(1,1,figsize = (20,10))
-            plt.plot(*layers,figure = fig)
-            plt.title('Temporal trajectories of all the cells that are stronger than %f'%(thresh), fontsize = 20)
-            plt.xlabel('Layers',fontsize = 15)
-            plt.ylabel('Nodes',fontsize = 15)
-
-
-            for i in range(self.size):
-                x = np.linspace(0, self.length -1, self.length)
-                y = np.linspace(i,i, self.length)
-                try:plt.scatter(x, y, s = 15, c = node_color, figure = fig, alpha = 1)
-                except: plt.scatter(x, y, s = 15, c = node_color[i], norm = norm, figure = fig, alpha = 1, cmap = comap)
-
-
-        else:
-            for j in range(1,self.length):
-                for i in self.neighbors(node_id,j):
-                    if self.list_adjacency[j][node_id][i] > thresh:
-                        layers.append((j-1, j))
-                        layers.append((node_id, i))
-                        try: layers.append('%s' %ed_color[j])
-                        except: layers.append('%s'%e_color)
-                            
-            fig,ax = plt.subplots(1, 1, figsize = (20,10))
-            plt.plot(*layers, figure = fig)
-            plt.title('Temporal trajectories of the cell %d that are stronger than %f'%(node_id,thresh), fontsize = 20)
-            plt.xlabel('Layers', fontsize = 15)
-            plt.ylabel('Nodes', fontsize = 15)
-            
-            for i in range(self.size):
-                x = np.linspace(0, self.length-1, self.length)
-                y = np.linspace(i, i, self.length)
-                try:plt.scatter(x, y, s = 15, c = node_color, figure = fig, alpha = 1)
-                except: plt.scatter(x, y, s = 15, c = node_color[i], norm = norm, figure = fig, alpha = 1, cmap = comap)
-        
-        if community is not None:
-            cbar = plt.colorbar(cmap = cmap)
-        
-            cbar.set_ticks([i for i in np.arange(0,int(np.max(community)),3)])
-            cbar.set_ticklabels([i for i in np.arange(0,int(np.max(community)),3)])
-            cbar.set_label('Colorbar for node communities - total of %d communities'%int(np.max(community)), rotation = 270)
-        if pv is not None:
-            plt.hlines(pv, 0, self.length-1, color = 'b', alpha = 0.4, linestyle = 'dashed')
-            plt.yticks(pv, color = 'b')
-        plt.tight_layout()
-    
-    def get_normalized_outlinks(self, thresholded_adjacency, interlayer): 
-        #interlayer is the node itselves edge weight that is connected to its future self that is the maximal
-        interlayer_indices = {}
-        interlayer_weights = {}
-        for i in range(self.length):
-            layerweights = []
-            for j in range(self.size):
-                maximal_neighbors = [[int(interlayer),j]]
-                for nonzero in np.nonzero(thresholded_adjacency[i][j,:])[0]:
-                    maximal_neighbors.append([thresholded_adjacency[i][j,nonzero], nonzero])
-                weights = np.array(sorted(maximal_neighbors, reverse = True))[:,0]
-                indices = np.array(sorted(maximal_neighbors, reverse = True))[:,1]
-                norm_weights = weights/np.sum(weights)
-                indices, norm_weights
-                interlayer_indices['%d,%d'%(i,j)] = indices
-                interlayer_weights['%d,%d'%(i,j)] = norm_weights
-        return(interlayer_indices,interlayer_weights)
-    
-    def neighborhood_flow(self, layer, node, interlayer_indices, interlayer_weights, thresh):
-        length = int(min(len(interlayer_weights['%d,%d'%(layer,node)]),len(interlayer_weights['%d,%d'%(layer+1,node)]))*thresh)
-        w = 1-jensenshannon(interlayer_weights['%d,%d'%(layer,node)][:length],interlayer_weights['%d,%d'%(layer+1,node)][:length])**2
-        nbr = interlayer_indices['%d,%d'%(layer,node)][:length]
-        return(w,nbr)
-        
-        
-    def update_interlayer(self, spikes, X, omega_global, percentage, method):
-        
-        ## all three methods in this function assumes the diagonal coupling
-        ## i.e. output is the list(of length layers -1) of lists (each of length number of neuorns)
-        ## corresponding to a node's interlayer coupling strength with it's future self.
-        binned_spikes = self.bin_time_series(spikes, gaussian = False)
-        sp = np.nonzero(binned_spikes)
-        
-        layers ,num_neurons, t = self.length, self.size, self.windowsize
-        
-        count_spikes = np.zeros((layers, num_neurons))
-        interlayer = np.ones((layers-1, num_neurons))
-    
-        if method == 'local':
-            for i in range(len(sp[0])):
-                l, n, t = sp[0][i], sp[1][i], sp[2][i]
-                count_spikes[l][n] = count_spikes[l][n] + 1
-            interlayers = []
-            for i in range(layers-1):
-                zscores = zscore(np.diff(count_spikes, axis = 0)[i])
-                layerweights = []
-                for j in range(num_neurons):
-                    if zscores[j] <= X: layerweights.append(percentage*omega_global)
-                    else: layerweights.append(omega_global)
-                interlayers.append(layerweights)
-
-        elif method == 'global':
-            for i in range(len(sp[0])):
-                l, n, t = sp[0][i], sp[1][i], sp[2][i]
-                count_spikes[l][n] = count_spikes[l][n] + 1
-            interlayers = []
-            zscores = zscore(sum(np.diff(count_spikes, axis = 0)))
-            for i in range(layers-1):
-                layerweights = []
-                for j in range(num_neurons):
-                    if zscores[j] <= X: layerweights.append(percentage*omega_global)
-                    else: layerweights.append(omega_global)
-                interlayers.append(layerweights)
-        return(interlayers)
-    
-    def make_tensor(self, rank, threshold, update_method, **kwargs):
-        
-        #Make tensor according to one of four methods
-        if update_method == 'local' or update_method == 'global': 
-            tensor = np.zeros((self.size, self.size, int((2*self.length)-1)))
-            inters = self.update_interlayer(kwargs['spikes'], 0.5, 1, 0.01, update_method)
-            for i in range(int((2*self.length)-1)):
-                if i%2 == 0:
-                    tensor[:,:,i] = self.threshold(self.list_adjacency[int(i/2)], threshold)
-                else:
-                    tensor[:,:,i] = np.diag(inters[int((i-1)/2)])
-            X = tl.tensor(tensor)
-        
-        elif update_method == 'neighborhood':
-            tensor = np.zeros((self.size, self.size, int((2*self.length)-1)))
-            updated_interlayer_indices, updated_interlayer_weights = self.get_normalized_outlinks(self.list_adjacency, 1)
-            for i in range(int((2*self.length)-1)):
-                if i%2 == 0:
-                    tensor[:,:,i] = self.threshold(self.list_adjacency[int(i/2)], threshold)
-                else:
-                    inter_layer = np.zeros((self.size,self.size))
-                    for k in range(self.size):
-                        w, nbr = self.neighborhood_flow(int(i/2), k, updated_interlayer_indices, updated_interlayer_weights, threshold)
-                        if np.isnan(w):
-                            w = 1.0
-                        for n in nbr:
-                            inter_layer[k,int(n)] = w
-                    tensor[:,:,i] = inter_layer
-            X = tl.tensor(tensor)
-    
-        elif update_method == None:
-            tensor = np.zeros((self.size, self.size, int((2*self.length)-1)))
-            for i in range(self.length):
-                tensor[:,:,i] = self.threshold(self.list_adjacency[i], threshold)
-            X = tl.tensor(tensor)
-            
-        #solve for PARAFAC decomposition
-        weights_parafac, factors_parafac = non_negative_parafac(X, rank = rank, n_iter_max = 500, init = 'random')
-
-        return(weights_parafac, factors_parafac)
-    
-    def process_tensor(self, factors, rank):
-        comms = []
-        membership = [[] for r in range(rank)]
-        for i in range(self.length):
-            for j in range(self.size):
-                comm_id = np.argmax(((factors[0][j]+factors[1][j])/2)*factors[2][i])
-                comms.append(comm_id)
-                membership[comm_id].append((j,i))
-        return(membership, comms)
-    
-    def community_consensus_iterative(self, C):
-        ## function finding the consensus of a given set of partitions. refer to the paper:
-        ## 'Robust detection of dynamic community structure in networks', Danielle S. Bassett, 
-        ## Mason A. Porter, Nicholas F. Wymbs, Scott T. Grafton, Jean M. Carlson et al.
-        
-        
-        npart,m  = C.shape 
-        C_rand3 = np.zeros((C.shape)) #permuted version of C
-        X = np.zeros((m,m)) #Nodal association matrix for C
-        X_rand3 = X # Random nodal association matrix for C_rand3
-
-        # randomly permute rows of C
-        for i in range(npart):
-            C_rand3[i,:] = C[i,np.random.permutation(m)]
-            for k in range(m):
-                for p in range(m):
-                    if int(C[i,k]) == int(C[i,p]): X[p,k] = X[p,k] + 1 #(i,j) is the # of times node i and j are assigned in the same comm
-                    if int(C_rand3[i,k]) == int(C_rand3[i,p]): X_rand3[p,k] = X_rand3[p,k] + 1 #(i,j) is the # of times node i and j are expected to be assigned in the same comm by chance
-        #thresholding
-        #keep only associated assignments that occur more often than expected in the random data
-
-        X_new3 = np.zeros((m,m))
-        X_new3[X>(np.max(np.triu(X_rand3,1)))/2] = X[X>(np.max(np.triu(X_rand3,1)))/2]
-        
-        ##turn thresholded nodal association matrix into igraph
-        edge_list = []
-        weight_list = []
-        for k,e in enumerate(np.transpose(np.nonzero(X_new3))):
-            i,j = e[0], e[1]
-            pair = (i,j)
-            edge_list.append(pair)
-            weight_list.append(X_new3[i][j])
-        
-        G = ig.Graph()
-        G.add_vertices(m)
-        G.add_edges(edge_list)
-        G.es['weight'] = weight_list
-        G.vs['id'] = list(range(m))
-        
-        optimiser = la.Optimiser()
-        partition = la.ModularityVertexPartition(G, weights = 'weight')
-        diff = optimiser.optimise_partition(partition, n_iterations = -1)
-        
-        return(partition)
-    
-    def run_community_detection(self, method, update_method = None, consensus = False, **kwargs):
-        '''
-        Main Function to run community detection.
-        
-        Parameters
-        ===========
-        method: str
-            Either MMM, Infomap or PARA_FACT(Tensor Factorization) indicating the community detection method
-        update_method: str
-            Interlayer edges will be processed based on one of the three methods, either 
-            local, global or neigborhood see `infomap`.
-        consensus: bool
-            Statistically significant partitions will be found from a given set of partitions.
-        interlayers: 1-D array like
-            A range of values for setting the interlayer edges of the network(MMM or Infomap only).
-        resolutions: 1-D array like
-            A range of values for the resolution parameters(MMM only).
-        thresholds: 1-D array like
-            A range of values to threshold the network(Infomap and PARA_FACT only).
-        ranks: 1-D array like
-            A range of ad-hoc number of communities to be found(PARA_FACT only)
-        spikes: 2-D array
-            Initial array containing the spikes.
-        
-        '''
-        
-        if method == 'MMM':
-            grid = len(kwargs['interlayers'])
-            membership_partitions = {}
-            C = np.zeros((grid*grid, self.size*self.length))
-            for i,e in enumerate(kwargs['interlayers']):
-                membership_labels = []
-                igraphs = self.create_igraph()
-    
-                ##update interlayer edges
-                if update_method == 'local' or update_method == 'global': 
-            
-                    inter_edge = self.update_interlayer(kwargs['spikes'], X = 0.5, omega_global = e, percentage = 0.01, method = update_method)    
-                    for j,f in enumerate(kwargs['resolutions']):
-                        parts, inter_parts = self.leiden(igraphs, inter_edge, f)
-                    
-                        C[i*grid+j,:] = inter_parts.membership
-                        comm_labels, comm_size  = self.membership(inter_parts)
-                        membership_labels.append(comm_labels)
-                        
-                elif update_method == 'neighborhood':
-                    interlayer_indices, interlayer_weights = self.get_normalized_outlinks(self.list_adjacency, e)
-                    for j,f in enumerate(kwargs['resolutions']):
-                        layers, interslice_layer, G_full = self.time_slices_to_layers(igraphs, interlayer_indices, interlayer_weights, interslice_weight = e)
-                        partitions = [la.RBConfigurationVertexPartition(H, weights = 'weight', resolution_parameter = f) for H in layers]
-        
-                        interslice_partition = la.RBConfigurationVertexPartition(interslice_layer, weights = 'weight', resolution_parameter = 0)
-                                                     
-                        optimiser = la.Optimiser()
-        
-                        diff = optimiser.optimise_partition_multiplex(partitions + [interslice_partition])
-                        C[i*grid+j,:] = interslice_partition.membership
-                        comm_labels, comm_size  = self.membership(interslice_partition)
-                        membership_labels.append(comm_labels)
-                   
-                elif update_method == None:
-                    
-                    for j,f in enumerate(kwargs['resolutions']):
-                        parts, inter_parts = self.leiden(igraphs, e, f)
-                    
-                        C[i*grid+j,:] = inter_parts.membership
-                        comm_labels, comm_size  = self.membership(inter_parts)
-                        membership_labels.append(comm_labels)
-                    
-                membership_partitions['interlayer=%.3f'%e] = membership_labels
-            
-        elif method == 'infomap':
-            grid = len(kwargs['interlayers'])
-            membership_partitions = {}
-            C = np.zeros((grid*grid, self.size*self.length))
-            dtype = [('layer',int),('nodeid',int),('module', int)]
-
-            for i, interlayer in enumerate(kwargs['interlayers']):
-                inter_membership = []
-                for j, thresh in enumerate(kwargs['thresholds']):
-                    
-                    IM = self.infomap(interlayer, thresh, update_method, **kwargs)
-                    
-                    membership = [[] for i in range(IM.num_top_modules)]
-                    for node in IM.nodes:
-                        membership[int(node.module_id-1)].append((node.node_id, node.layer_id))
-                    inter_membership.append(membership)
-        
-                    ordered_set = []
-                    for node in IM.nodes:
-                        ordered_set.append((node.layer_id, node.node_id, node.module_id))
-                    ordered_nodes = np.array(ordered_set , dtype = dtype)
-                    
-                    C[i*grid+j,:] = [node[2] for node in np.sort(ordered_nodes, order = ['layer', 'nodeid'])]
-        
-                membership_partitions['interlayer=%.3f'%interlayer] = inter_membership
-        
-        elif method == 'PARA_FACT':
-            grid = len(kwargs['ranks'])
-            membership_partitions = {}
-            C = np.zeros((grid*grid, self.size*self.length))
-            
-            for i, r in enumerate(kwargs['ranks']):
-                inter_membership = []
-                for j, thresh in enumerate(kwargs['thresholds']):
-                    weights, factors = self.make_tensor(r, thresh, update_method, **kwargs)
-                    membership, comm  = self.process_tensor(factors, r)
-                    inter_membership.append(membership)
-                    C[i*grid+j,:] = comm
-                membership_partitions['rank=%d'%r] = inter_membership
-        
-        if consensus: 
-            return(self.membership(self.community_consensus_iterative(C))[0], C)
-        else: 
-            return(membership_partitions, C)
-
-
-# In[ ]:
-
-
-
-
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import numpy as np\n",
+    "from math import floor\n",
+    "import random\n",
+    "\n",
+    "import matplotlib.pyplot as plt\n",
+    "import matplotlib as mpl\n",
+    "\n",
+    "from scipy.ndimage import gaussian_filter1d\n",
+    "from scipy.stats import zscore\n",
+    "from scipy.spatial.distance import jensenshannon\n",
+    "\n",
+    "import leidenalg as la\n",
+    "import igraph as ig\n",
+    "\n",
+    "try: \n",
+    "    from graph_tool.all import *\n",
+    "except: \n",
+    "    from infomap import Infomap, MultilayerNode\n",
+    "\n",
+    "    import tensorly as tl\n",
+    "    from tensorly.decomposition import non_negative_parafac\n",
+    "    print('Graph-tool requires its own environment. Restart the kernel with a gt environment to run DSBM, otherwise you can proceed.')"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "class temporal_network:\n",
+    "    \"\"\"\n",
+    "    Temporal network object to run dynamic community detection and other multilayer network diagnostics on. \n",
+    "    Temporal network is a memoryless multiplex network where every node exists in every layer. \n",
+    "    \n",
+    "    Attributes\n",
+    "    ------------\n",
+    "    temporal_network.size: int\n",
+    "        Number of nodes in any given layer.\n",
+    "    temporal_network.length: int\n",
+    "        Total number of layers.\n",
+    "    temporal_network.nodes: list\n",
+    "        A list of node ids starting from 0 to ``size-1``.\n",
+    "    temporal_network.windowsize: int\n",
+    "        Assuming that temporal network is created from a continous time-series data, windowsize is the size\n",
+    "        of the windows we are splitting the time-series into.\n",
+    "    temporal_network.supra_adjacency: array, ``size*length x size*length``\n",
+    "        The supra adjacency matrix to encode the connectivity information of the multilayer network.\n",
+    "    temporal_network.list_adjacency: list, [array1, array2, ...]\n",
+    "        A list of arrays of length ``length`` where each array is ``size x size`` encoding the connectivity \n",
+    "        information of each layer.\n",
+    "    temporal_network.edge_list: list, [list1, list2, ...]\n",
+    "        A list of length ``length`` of lists where each element of the sublist is a 4-tuple (i,j,w,t) indicating\n",
+    "        there is an edge from node i to node j of nonzero weight w in the layer t. So, every quadruplet in the\n",
+    "        t'th sublist in ``edge_list`` has 4th entry t.\n",
+    "    \n",
+    "    Parameters\n",
+    "    ------------\n",
+    "    size: int\n",
+    "        Number of nodes in any given layer.\n",
+    "    length: int\n",
+    "        Total number of layers.\n",
+    "    window_size: int\n",
+    "        Size of the windows the time series will be divided into.\n",
+    "    data: str\n",
+    "        ``temporal_network`` accepts three types of connectivity input, ``supra_adjacency``, ``list_adjacency`` \n",
+    "        and ``edge_list`` (see the attributes). So, we must specify which one of these types we are submitting \n",
+    "        the connectivity information to the ``temporal_network``. Accordingly, this parameter can be one of the \n",
+    "        ``supra__adjacency``, ``list__adjacency`` and ``edge__list``, respectively.\n",
+    "        \n",
+    "        Once the data type is understood, object converts the given input into the other two data types so that\n",
+    "        if it needs to use one of the other types(it is easier to work with ``list_adjacency`` for example, but \n",
+    "        some helper functions from different libraries such as ``igraph``, processes ``edge_list`` better), \n",
+    "        it can switch back and forth quicker.\n",
+    "    **kwargs:\n",
+    "        supra_adjacency: array, ``size*length x size*length``\n",
+    "            The supra adjacency matrix to encode the connectivity information of the multilayer network. Should \n",
+    "            be provided if ``data = supra__adjacency``.\n",
+    "    **kwargs:\n",
+    "        list_adjacency: list, [array1, array2, ...]\n",
+    "            A list of arrays of length ``length`` where each array is ``size x size`` encoding the connectivity \n",
+    "            information of each layer. Should be provided if ``data = list__adjacency``.\n",
+    "    **kwargs:\n",
+    "        edge_list: list, [list1, list2, ...]\n",
+    "            A list of length ``length`` of lists where each element of the sublist is a 4-tuple (i,j,w,t) \n",
+    "            indicating there is an edge from node i to node j of nonzero weight w in the layer t. So, every \n",
+    "            quadruplet in the t'th sublist in ``edge_list`` has 4th entry t. Should be provided if \n",
+    "            ``data = edge__list``.\n",
+    "    **kwargs:\n",
+    "        omega: int\n",
+    "            Interlayer edge coupling strength. Should be provided if data is ``list__adjacency`` or \n",
+    "            ``edge__list``. For now, we will assume all the coupling is going to be diagonal with a constant \n",
+    "            strength.\n",
+    "            \n",
+    "            TODO: extend omega to a vector(for differing interlayer diagonal coupling strengths) and to\n",
+    "            a matrix(for non-diagonal coupling).\n",
+    "    **kwargs:\n",
+    "        kind:\n",
+    "            Interlayer coupling type. Can be either ``ordinal`` where only the adjacent layers are coupled or \n",
+    "            ``cardinal`` where all layers are pairwise coupled with strength ``omega``. Should be provided if \n",
+    "            data is ``list__adjacency`` or ``edge__list``.\n",
+    "    \n",
+    "    \"\"\"\n",
+    "    def __init__(self, size, length, window_size, data, **kwargs):\n",
+    "        \n",
+    "        if length < 1: raise ValueError('Object should be a multilayer network with at least 2 layers')\n",
+    "        if size < 3: raise ValueError('Layers must have at least 3 nodes')\n",
+    "        \n",
+    "        self.size = size # number of nodes in every layer\n",
+    "        self.length = length # number of layers\n",
+    "        self.nodes = [i for i in range(self.size)]\n",
+    "        self.windowsize = window_size\n",
+    "                    \n",
+    "        if  data == 'supra__adjacency':\n",
+    "            self.supra_adjacency = kwargs['supra_adjacency']\n",
+    "            list_adjacency = [ [] for i in range(length) ]\n",
+    "            \n",
+    "            for i in range(self.length):\n",
+    "                list_adjacency[i] = self.supra_adjacency[i*self.size:(i+1)*self.size,i*self.size:(i+1)*self.size]\n",
+    "            \n",
+    "            self.list_adjacency = list_adjacency\n",
+    "            \n",
+    "            edge_list = []\n",
+    "            for i in range(self.length):\n",
+    "                A = self.list_adjacency[i]\n",
+    "                firing = np.transpose(np.nonzero(A))\n",
+    "                for j,m in enumerate(firing):\n",
+    "                    quadreplet =(m[0],m[1],A[m[0],m[1]],i)\n",
+    "                    edge_list.append(quadreplet)\n",
+    "            self.edgelist = edge_list\n",
+    "                \n",
+    "        \n",
+    "        elif data == 'edge__list':\n",
+    "            self.edgelist = kwargs['edge_list']\n",
+    "            supra_adjacency = np.zeros((self.size*self.length,self.size*self.length))\n",
+    "            list_adjacency = [ [] for i in range(self.length) ]\n",
+    "            for q in range(self.length):\n",
+    "                list_adjacency[q]=np.zeros((self.size,self.size))\n",
+    "            \n",
+    "            for k,e in enumerate(self.edgelist):\n",
+    "                i,j,w,t = e[0], e[1], e[2],e[3]\n",
+    "                supra_adjacency[self.size*(t)+i][self.size*(t)+j] = w\n",
+    "                list_adjacency[t][i][j] = w\n",
+    "\n",
+    "        \n",
+    "            ##filling off-diagonal blocks\n",
+    "            if kwargs['kind'] == 'ordinal':\n",
+    "                for n in range(self.size*(self.length-1)):\n",
+    "                    supra_adjacency[n][n+self.size] = kwargs['omega']\n",
+    "                    supra_adjacency[n+self.size][n] = kwargs['omega']\n",
+    "                \n",
+    "            elif kwargs['kind'] == 'cardinal':\n",
+    "                i = 0\n",
+    "                while self.length-i != 0:\n",
+    "                    i = i+1\n",
+    "                    for n in range(self.size*(self.length-i)):\n",
+    "                        supra_adjacency[n][n+i*self.size] = kwargs['omega']\n",
+    "                        supra_adjacency[n+i*self.size][n] = kwargs['omega']\n",
+    "            \n",
+    "            self.supra_adjacency = supra_adjacency\n",
+    "            self.list_adjacency = list_adjacency\n",
+    "            \n",
+    "        elif data == 'list__adjacency':\n",
+    "            self.list_adjacency = kwargs['list_adjacency']\n",
+    "            supra_adjacency = np.zeros((self.size*self.length,self.size*self.length))\n",
+    "            \n",
+    "            for i in range(self.length):\n",
+    "                supra_adjacency[i*self.size:(i+1)*self.size,i*self.size:(i+1)*self.size] = self.list_adjacency[i]\n",
+    "            \n",
+    "            ##filling off-diagonal blocks\n",
+    "            if kwargs['kind'] == 'ordinal':\n",
+    "                for n in range(self.size*(self.length-1)):\n",
+    "                    supra_adjacency[n][n+self.size] = kwargs['omega']\n",
+    "                    supra_adjacency[n+self.size][n] = kwargs['omega']\n",
+    "                \n",
+    "            elif kwargs['kind'] == 'cardinal':\n",
+    "                i = 0\n",
+    "                while self.length-i != 0:\n",
+    "                    i = i+1\n",
+    "                    for n in range(self.size*(self.length-i)):\n",
+    "                        supra_adjacency[n][n+i*self.size] = kwargs['omega']\n",
+    "                        supra_adjacency[n+i*self.size][n] = kwargs['omega']\n",
+    "            \n",
+    "            self.supra_adjacency = supra_adjacency\n",
+    "            \n",
+    "            edge_list = []\n",
+    "            for i in range(self.length):\n",
+    "                A = self.list_adjacency[i]\n",
+    "                firing = np.transpose(np.nonzero(A))\n",
+    "                for j,m in enumerate(firing):\n",
+    "                    quadreplet =(m[0],m[1],A[m[0],m[1]],i)\n",
+    "                    edge_list.append(quadreplet)\n",
+    "            self.edgelist = edge_list\n",
+    "            \n",
+    "    def aggragate(self, normalized = True):\n",
+    "        t = self.length\n",
+    "        n = self.size\n",
+    "        aggragated = np.zeros((n,n))\n",
+    "        \n",
+    "        for i,c in enumerate(self.list_adjacency):\n",
+    "            aggragated = aggragated + c\n",
+    "            \n",
+    "        if normalized: return (aggragated/t)\n",
+    "        else: return (aggragated)\n",
+    "    \n",
+    "    def binarize(self, array, thresh = None):\n",
+    "        n,t = array.shape\n",
+    "        binary_spikes = np.zeros(array.shape)\n",
+    "        for i in range(n):\n",
+    "            for j in range(t):\n",
+    "                if thresh is None:\n",
+    "                    if array[i][j] <= 0: pass\n",
+    "                    else: binary_spikes[i][j] = 1\n",
+    "                else:\n",
+    "                    if array[i][j] < thresh: array[i][j] = 0\n",
+    "                    else: binary_spikes[i][j] = 1\n",
+    "        return(binary_spikes)\n",
+    "    \n",
+    "    def threshold(self, array, thresh):\n",
+    "        n,t = array.shape\n",
+    "        thresholded_array = np.copy(array)\n",
+    "        for i in range(n):\n",
+    "            for j in range(t):\n",
+    "                if array[i][j] < thresh: thresholded_array[i][j] = 0\n",
+    "                else: pass\n",
+    "        return(thresholded_array)\n",
+    "    \n",
+    "    def bin_time_series(self, array, gaussian = True, **kwargs):\n",
+    "        #input: nxt matrix \n",
+    "        #returns: binned time series i.e. l x n x binsize\n",
+    "        \n",
+    "        binsize = self.windowsize\n",
+    "        n = array.shape[0] # number of neurons\n",
+    "        totalsize = array.shape[1] # total duration of spikes\n",
+    "        gauss_array = np.zeros((n,totalsize))\n",
+    "        l = int(totalsize/binsize) # number of resulting layers\n",
+    "        \n",
+    "        if gaussian:\n",
+    "            for i in range(n):\n",
+    "                gauss_array[i] = gaussian_filter(array[i],kwargs['sigma'])\n",
+    "        else: gauss_array= array\n",
+    "            \n",
+    "        A = np.zeros((l,n,binsize))\n",
+    "        for i in range(l):\n",
+    "            A[i] = gauss_array[:,i*binsize:(i+1)*binsize]\n",
+    "        return(A)\n",
+    "    \n",
+    "    def edgelist2edges(self):# helper to create igraphs\n",
+    "        T = self.length\n",
+    "        all_edges = [[] for i in range(T)]\n",
+    "        all_weights = [[] for i in range(T)]\n",
+    "        dtype = [('row',int),('column',int),('weight',float),('layer',int)]\n",
+    "        for k,e in enumerate(np.sort(np.array(self.edgelist, dtype=dtype),order='layer')):\n",
+    "            i,j,w,t = e[0], e[1], e[2],e[3]\n",
+    "            pair = (i,j)\n",
+    "            all_edges[t].append(pair)\n",
+    "            all_weights[t].append(w)\n",
+    "        return (all_edges, all_weights)\n",
+    "    \n",
+    "    def neighbors(self, node_id, layer):\n",
+    "        \n",
+    "        if node_id > self.size: return('Invalid node ID')\n",
+    "        if layer > self.length: return('Invalid layer')\n",
+    "        neighbors = []\n",
+    "        \n",
+    "        for k,e in enumerate(self.edgelist):\n",
+    "            i,j,w,t = e[0],e[1],e[2],e[3]\n",
+    "            if t != layer:pass\n",
+    "            else:\n",
+    "                if i != node_id:pass\n",
+    "                else:neighbors.append(j)\n",
+    "                    \n",
+    "        return(neighbors)\n",
+    "    \n",
+    "    def average_degree(self,layer):\n",
+    "        \n",
+    "        average_degree = 0\n",
+    "        \n",
+    "        for i in range(self.size):\n",
+    "            average_degree = average_degree + len(self.neighbors(i,layer))\n",
+    "        \n",
+    "        return(average_degree/(2*self.size))\n",
+    "    \n",
+    "    def get_attrs_or_nones(self, seq, attr_name):\n",
+    "        try:\n",
+    "            return seq[attr_name]\n",
+    "        except KeyError:\n",
+    "            return [None] * len(seq)\n",
+    "    \n",
+    "    def disjoint_union_attrs(self, graphs):\n",
+    "        G = ig.Graph.disjoint_union(graphs[0], graphs[1:])\n",
+    "        vertex_attributes = set(sum([H.vertex_attributes() for H in graphs], []))\n",
+    "        edge_attributes = set(sum([H.edge_attributes() for H in graphs], []))\n",
+    "\n",
+    "        for attr in vertex_attributes:\n",
+    "            attr_value = sum([self.get_attrs_or_nones(H.vs, attr) for H in graphs], [])\n",
+    "            G.vs[attr] = attr_value\n",
+    "        for attr in edge_attributes:\n",
+    "            attr_value = sum([self.get_attrs_or_nones(H.es, attr) for H in graphs], [])\n",
+    "            G.es[attr] = attr_value\n",
+    "        return G\n",
+    "\n",
+    "    def time_slices_to_layers(self, graphs, interlayer_indices, interlayer_weights,\n",
+    "                              interslice_weight=1,\n",
+    "                              slice_attr='slice',\n",
+    "                              vertex_id_attr='id',\n",
+    "                              edge_type_attr='type',\n",
+    "                              weight_attr='weight'):\n",
+    "    \n",
+    "        G_slices = ig.Graph.Tree(len(graphs), 1, mode=ig.TREE_UNDIRECTED)\n",
+    "        G_slices.es[weight_attr] = interslice_weight\n",
+    "        G_slices.vs[slice_attr] = graphs\n",
+    "    \n",
+    "        return self.slices_to_layers(G_slices, interlayer_indices, interlayer_weights, slice_attr,vertex_id_attr,edge_type_attr,weight_attr)\n",
+    "\n",
+    "    def slices_to_layers(self, G_coupling, interlayer_indices, interlayer_weights,\n",
+    "                         slice_attr='slice',\n",
+    "                         vertex_id_attr='id',\n",
+    "                         edge_type_attr='type',\n",
+    "                         weight_attr='weight'):\n",
+    "        \n",
+    "        if not slice_attr in G_coupling.vertex_attributes():\n",
+    "            raise ValueError(\"Could not find the vertex attribute {0} in the coupling graph.\".format(slice_attr))\n",
+    "\n",
+    "        if not weight_attr in G_coupling.edge_attributes():\n",
+    "            raise ValueError(\"Could not find the edge attribute {0} in the coupling graph.\".format(weight_attr))\n",
+    "\n",
+    "        # Create disjoint union of the time graphs\n",
+    "        for v_slice in G_coupling.vs: \n",
+    "            H = v_slice[slice_attr]\n",
+    "            H.vs[slice_attr] = v_slice.index\n",
+    "            if not vertex_id_attr in H.vertex_attributes():\n",
+    "                raise ValueError(\"Could not find the vertex attribute {0} to identify nodes in different slices.\".format(vertex_id_attr ))\n",
+    "            if not weight_attr in H.edge_attributes():\n",
+    "                H.es[weight_attr] = 1\n",
+    "\n",
+    "        G = self.disjoint_union_attrs(G_coupling.vs[slice_attr])\n",
+    "        G.es[edge_type_attr] = 'intraslice'\n",
+    "\n",
+    "        for i in range(len(G_coupling.vs[slice_attr])-1):\n",
+    "            v_slice = G_coupling.vs[i]\n",
+    "            nodes_v = sorted([v for v in G.vs if v[slice_attr] == v_slice.index and v[vertex_id_attr] in G.vs.select(lambda v: v[slice_attr]==v_slice.index)[vertex_id_attr]], key=lambda v: v[vertex_id_attr])\n",
+    "            for j,v in enumerate(nodes_v):\n",
+    "                w, nbr = self.neighborhood_flow(i, j, interlayer_indices, interlayer_weights, thresh = 0.2)\n",
+    "                edges = []\n",
+    "                a = G.vs[int(i*self.size + j)]\n",
+    "                for n in nbr:\n",
+    "                    b = G.vs[int((i+1)*self.size + n)]\n",
+    "                    edges.append((a,b))\n",
+    "                e_start = G.ecount()\n",
+    "                G.add_edges(edges)\n",
+    "                e_end = G.ecount()\n",
+    "                e_idx = range(e_start,e_end)\n",
+    "                G.es[e_idx][weight_attr] = w\n",
+    "                G.es[e_idx][edge_type_attr] = 'interslice'\n",
+    "\n",
+    "        # Convert aggregate graph to individual layers for each time slice.\n",
+    "        G_layers = [None]*G_coupling.vcount()\n",
+    "        for v_slice in G_coupling.vs:\n",
+    "            H = G.subgraph_edges(G.es.select(_within=[v.index for v in G.vs if v[slice_attr] == v_slice.index]), delete_vertices=False)\n",
+    "            H.vs['node_size'] = [1 if v[slice_attr] == v_slice.index else 0 for v in H.vs]\n",
+    "            G_layers[v_slice.index] = H\n",
+    "\n",
+    "        # Create one graph for the interslice links.\n",
+    "        G_interslice = G.subgraph_edges(G.es.select(type_eq='interslice'), delete_vertices=False)\n",
+    "        G_interslice.vs['node_size'] = 0\n",
+    "    \n",
+    "        return G_layers, G_interslice, G\n",
+    "    \n",
+    "    def create_igraph(self):\n",
+    "        T = self.length\n",
+    "        N = self.size\n",
+    "        G = []\n",
+    "        edges = self.edgelist2edges()[0]\n",
+    "        weights = self.edgelist2edges()[1]\n",
+    "        for i in range(T):\n",
+    "            G.append(ig.Graph())\n",
+    "            G[i].add_vertices(N)\n",
+    "            G[i].add_edges(edges[i])\n",
+    "            G[i].es['weight'] = weights[i]\n",
+    "            G[i].vs['id'] = list(range(N))\n",
+    "            G[i].vs['node_size'] = 0\n",
+    "        return(G)\n",
+    "\n",
+    "    \n",
+    "    def leiden(self, G, interslice, resolution):\n",
+    "        \n",
+    "        layers, interslice_layer, G_full = la.time_slices_to_layers(G, interslice_weight = interslice)\n",
+    "        \n",
+    "        partitions = [la.RBConfigurationVertexPartition(H, \n",
+    "                                            weights = 'weight', \n",
+    "                                            resolution_parameter = resolution) for H in layers]\n",
+    "        \n",
+    "        interslice_partition = la.RBConfigurationVertexPartition(interslice_layer, \n",
+    "                                                                 weights = 'weight',\n",
+    "                                                                 resolution_parameter = 0)\n",
+    "                                                     \n",
+    "        optimiser = la.Optimiser()\n",
+    "        \n",
+    "        diff = optimiser.optimise_partition_multiplex(partitions + [interslice_partition])\n",
+    "\n",
+    "        return(partitions, interslice_partition)\n",
+    "    \n",
+    "    def infomap(self, inter_edge, threshold, update_method = None, **kwargs):\n",
+    "        '''\n",
+    "        Infomap helper function. \n",
+    "        '''\n",
+    "        im = Infomap(\"--two-level --directed --silent\")\n",
+    "            ######### Make Network\n",
+    "            ## add intra edges\n",
+    "        thresholded_adjacency = []\n",
+    "        for l in range(self.length):\n",
+    "            thresholded_adjacency.append(self.threshold(self.list_adjacency[l], thresh = threshold))\n",
+    "            for n1,e in enumerate(thresholded_adjacency[l]):## list of length 2 corresponding to the adjacency matrices in each layer\n",
+    "                for n2,w in enumerate(e):\n",
+    "                    s = MultilayerNode(layer_id = l, node_id = n1)\n",
+    "                    t = MultilayerNode(layer_id = l, node_id = n2)\n",
+    "                    im.add_multilayer_link(s, t, w)\n",
+    "                    im.add_multilayer_link(t, s, w)\n",
+    "                \n",
+    "        ## add inter edges\n",
+    "        if update_method == 'local' or update_method == 'global': \n",
+    "        \n",
+    "            updated_interlayer = self.update_interlayer(kwargs['spikes'], 0, inter_edge, 0.1, update_method) \n",
+    "        \n",
+    "            for l in range(self.length-1):\n",
+    "                for k in range(self.size):# number of nodes which is 60 in the multilayer network\n",
+    "                    s = MultilayerNode(layer_id = l, node_id = k)\n",
+    "                    t = MultilayerNode(layer_id = l+1, node_id = k)\n",
+    "                    im.add_multilayer_link(s, t, updated_interlayer[l][k])\n",
+    "                    im.add_multilayer_link(t, s, updated_interlayer[l][k])\n",
+    "                \n",
+    "        elif update_method == 'neighborhood':\n",
+    "        \n",
+    "            updated_interlayer_indices, updated_interlayer_weights = self.get_normalized_outlinks(thresholded_adjacency, inter_edge)\n",
+    "            for l in range(self.length-1):\n",
+    "                for k in range(self.size):\n",
+    "                    w, nbr = self.neighborhood_flow(l, k, updated_interlayer_indices, updated_interlayer_weights, threshold)\n",
+    "                    for n in nbr:\n",
+    "                        s = MultilayerNode(layer_id = l, node_id = k)\n",
+    "                        t = MultilayerNode(layer_id = l+1, node_id = n)\n",
+    "                        im.add_multilayer_link(s, t, w)\n",
+    "                        im.add_multilayer_link(t, s, w)\n",
+    "                    \n",
+    "        elif update_method == None:\n",
+    "            for l in range(self.length-1):\n",
+    "                for k in range(self.size):# number of nodes which is 60 in the multilayer network\n",
+    "                    s = MultilayerNode(layer_id = l, node_id = k)\n",
+    "                    t = MultilayerNode(layer_id = l+1, node_id = k)\n",
+    "                    im.add_multilayer_link(s, t, inter_edge)\n",
+    "                    im.add_multilayer_link(t, s, inter_edge)\n",
+    "        \n",
+    "        im.run()\n",
+    "        return(im)\n",
+    "    \n",
+    "    def membership(self, interslice_partition): ## returns the community assignments from the leiden algorithm as\n",
+    "        ##                                       tuple (n,t) n is the node id t is the layer that node is in\n",
+    "        n = self.size\n",
+    "        membership = [[] for i in range(interslice_partition._len)]\n",
+    "        for i,m in enumerate(interslice_partition._membership):\n",
+    "            time = floor(i/n)\n",
+    "            node_id = i%n\n",
+    "            membership[m].append((node_id,time))\n",
+    "        return(membership, len(membership))\n",
+    "    \n",
+    "    def community(self, membership, ax):\n",
+    "        n = self.size\n",
+    "        t = self.length\n",
+    "        number_of_colors = len(membership)\n",
+    "\n",
+    "        comms = np.zeros((n,t))\n",
+    "\n",
+    "        color = [\"#\"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(number_of_colors)]\n",
+    "\n",
+    "        for i, l in enumerate(membership):\n",
+    "            for j,k in enumerate(l):\n",
+    "                comms[k[0]][k[1]] = i\n",
+    "\n",
+    "        cmap = mpl.colors.ListedColormap(color)\n",
+    "\n",
+    "        ax.imshow(comms, interpolation = 'none', cmap = cmap, aspect = 'auto', origin = 'lower', extent = [-0.5,t-0.5,-0.5,n-0.5])\n",
+    "        return(comms, color)\n",
+    "    \n",
+    "    def raster_plot(self, spikes, ax, color = None, **kwargs):#plots the raster plot of the spike activity on a \n",
+    "        # given axis 'comm_assignment' and 'color' arguments are the outputs of the function 'community' \n",
+    "        # and they display the community assignment of the spiking activity if provided. if not, raster \n",
+    "        # ais going to be plotted blue\n",
+    "        binsize = self.windowsize\n",
+    "        binarized_spikes = self.binarize(spikes)\n",
+    "        binned_spikes = self.bin_time_series(binarized_spikes, gaussian = False)\n",
+    "        l,n,t = binned_spikes.shape\n",
+    "                    \n",
+    "        sp = np.nonzero(binned_spikes)\n",
+    "        \n",
+    "        if color is None: \n",
+    "            col = [0]*l\n",
+    "            clr = [col for i in range(n)]\n",
+    "            color = ['#0000ff']\n",
+    "        else: clr = kwargs['comm_assignment']\n",
+    "        \n",
+    "        cmap = mpl.colors.ListedColormap(color)\n",
+    "        \n",
+    "        for i in range(len(sp[0])):\n",
+    "            ax.scatter(sp[0][i]*binsize+sp[2][i],  sp[1][i], \n",
+    "                       s = 5, \n",
+    "                       c = color[int(clr[sp[1][i]][sp[0][i]])], \n",
+    "                       marker = 'x', \n",
+    "                       cmap = cmap)\n",
+    "            \n",
+    "        ax.set_title('Raster Plot', fontsize = 20)\n",
+    "        ax.set_xlabel('Time (Frames)', fontsize = 15)\n",
+    "        ax.set_ylabel('Neuron ID', fontsize = 15)\n",
+    "        ax.set_xticks([t*i for i in range(l+1)])\n",
+    "        ax.set_yticks([5*i for i in range(int(n/5)+1)]+[n])\n",
+    "        ax.tick_params(axis = 'x', labelsize = 10)\n",
+    "        ax.tick_params(axis = 'y', labelsize = 13)\n",
+    "    \n",
+    "    def trajectories(self, thresh = 0.9, node_id = None, community = None, edge_color = True, pv = None):\n",
+    "        #function graphing the edge trajcetories of the temporal\n",
+    "        ## network. Tresh is for thresholding the paths that are strongere than the given value.\n",
+    "        ## if node_id is None, function is going to graph all of the nodes's trajectories.\n",
+    "        ## community argument is for indicating the community assignment\n",
+    "        ## of the nodes if exists, if not pass along None.\n",
+    "        ## edge_color\n",
+    "        ## pv == pass a list of pv cell indices or None --dashes the pv cells\n",
+    "        \n",
+    "        layers = []\n",
+    "\n",
+    "        if edge_color == True: ed_color = [\"#\"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(self.length)]\n",
+    "        else: e_color = 'black' #[\"#\"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(self.length)]\n",
+    "\n",
+    "            \n",
+    "        if community is None: node_color = 'r'     \n",
+    "        else:\n",
+    "            colors = [\"#\"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]) for i in range(int(np.max(community)))]\n",
+    "            comap = mpl.colors.ListedColormap(colors)\n",
+    "            node_color = community\n",
+    "            norm = plt.Normalize(0,int(np.max(community)))\n",
+    "\n",
+    "        if node_id == None:\n",
+    "            for k in self.nodes:\n",
+    "                for j in range(1,self.length):\n",
+    "                    for i in self.neighbors(k, j):\n",
+    "                        if self.list_adjacency[j][k][i] > thresh:\n",
+    "                            layers.append((j-1, j))\n",
+    "                            layers.append((k, i))\n",
+    "                            try: layers.append('%s' %ed_color[j])\n",
+    "                            except: layers.append('%s'%e_color)\n",
+    "                            \n",
+    "            fig,ax = plt.subplots(1,1,figsize = (20,10))\n",
+    "            plt.plot(*layers,figure = fig)\n",
+    "            plt.title('Temporal trajectories of all the cells that are stronger than %f'%(thresh), fontsize = 20)\n",
+    "            plt.xlabel('Layers',fontsize = 15)\n",
+    "            plt.ylabel('Nodes',fontsize = 15)\n",
+    "\n",
+    "\n",
+    "            for i in range(self.size):\n",
+    "                x = np.linspace(0, self.length -1, self.length)\n",
+    "                y = np.linspace(i,i, self.length)\n",
+    "                try:plt.scatter(x, y, s = 15, c = node_color, figure = fig, alpha = 1)\n",
+    "                except: plt.scatter(x, y, s = 15, c = node_color[i], norm = norm, figure = fig, alpha = 1, cmap = comap)\n",
+    "\n",
+    "\n",
+    "        else:\n",
+    "            for j in range(1,self.length):\n",
+    "                for i in self.neighbors(node_id,j):\n",
+    "                    if self.list_adjacency[j][node_id][i] > thresh:\n",
+    "                        layers.append((j-1, j))\n",
+    "                        layers.append((node_id, i))\n",
+    "                        try: layers.append('%s' %ed_color[j])\n",
+    "                        except: layers.append('%s'%e_color)\n",
+    "                            \n",
+    "            fig,ax = plt.subplots(1, 1, figsize = (20,10))\n",
+    "            plt.plot(*layers, figure = fig)\n",
+    "            plt.title('Temporal trajectories of the cell %d that are stronger than %f'%(node_id,thresh), fontsize = 20)\n",
+    "            plt.xlabel('Layers', fontsize = 15)\n",
+    "            plt.ylabel('Nodes', fontsize = 15)\n",
+    "            \n",
+    "            for i in range(self.size):\n",
+    "                x = np.linspace(0, self.length-1, self.length)\n",
+    "                y = np.linspace(i, i, self.length)\n",
+    "                try:plt.scatter(x, y, s = 15, c = node_color, figure = fig, alpha = 1)\n",
+    "                except: plt.scatter(x, y, s = 15, c = node_color[i], norm = norm, figure = fig, alpha = 1, cmap = comap)\n",
+    "        \n",
+    "        if community is not None:\n",
+    "            cbar = plt.colorbar(cmap = cmap)\n",
+    "        \n",
+    "            cbar.set_ticks([i for i in np.arange(0,int(np.max(community)),3)])\n",
+    "            cbar.set_ticklabels([i for i in np.arange(0,int(np.max(community)),3)])\n",
+    "            cbar.set_label('Colorbar for node communities - total of %d communities'%int(np.max(community)), rotation = 270)\n",
+    "        if pv is not None:\n",
+    "            plt.hlines(pv, 0, self.length-1, color = 'b', alpha = 0.4, linestyle = 'dashed')\n",
+    "            plt.yticks(pv, color = 'b')\n",
+    "        plt.tight_layout()\n",
+    "    \n",
+    "    def get_normalized_outlinks(self, thresholded_adjacency, interlayer): \n",
+    "        #interlayer is the node itselves edge weight that is connected to its future self that is the maximal\n",
+    "        interlayer_indices = {}\n",
+    "        interlayer_weights = {}\n",
+    "        for i in range(self.length):\n",
+    "            layerweights = []\n",
+    "            for j in range(self.size):\n",
+    "                maximal_neighbors = [[int(interlayer),j]]\n",
+    "                for nonzero in np.nonzero(thresholded_adjacency[i][j,:])[0]:\n",
+    "                    maximal_neighbors.append([thresholded_adjacency[i][j,nonzero], nonzero])\n",
+    "                weights = np.array(sorted(maximal_neighbors, reverse = True))[:,0]\n",
+    "                indices = np.array(sorted(maximal_neighbors, reverse = True))[:,1]\n",
+    "                norm_weights = weights/np.sum(weights)\n",
+    "                indices, norm_weights\n",
+    "                interlayer_indices['%d,%d'%(i,j)] = indices\n",
+    "                interlayer_weights['%d,%d'%(i,j)] = norm_weights\n",
+    "        return(interlayer_indices,interlayer_weights)\n",
+    "    \n",
+    "    def neighborhood_flow(self, layer, node, interlayer_indices, interlayer_weights, thresh):\n",
+    "        length = int(min(len(interlayer_weights['%d,%d'%(layer,node)]),len(interlayer_weights['%d,%d'%(layer+1,node)]))*thresh)\n",
+    "        w = 1-jensenshannon(interlayer_weights['%d,%d'%(layer,node)][:length],interlayer_weights['%d,%d'%(layer+1,node)][:length])**2\n",
+    "        nbr = interlayer_indices['%d,%d'%(layer,node)][:length]\n",
+    "        return(w,nbr)\n",
+    "        \n",
+    "        \n",
+    "    def update_interlayer(self, spikes, X, omega_global, percentage, method):\n",
+    "        \n",
+    "        ## all three methods in this function assumes the diagonal coupling\n",
+    "        ## i.e. output is the list(of length layers -1) of lists (each of length number of neuorns)\n",
+    "        ## corresponding to a node's interlayer coupling strength with it's future self.\n",
+    "        binned_spikes = self.bin_time_series(spikes, gaussian = False)\n",
+    "        sp = np.nonzero(binned_spikes)\n",
+    "        \n",
+    "        layers ,num_neurons, t = self.length, self.size, self.windowsize\n",
+    "        \n",
+    "        count_spikes = np.zeros((layers, num_neurons))\n",
+    "        interlayer = np.ones((layers-1, num_neurons))\n",
+    "    \n",
+    "        if method == 'local':\n",
+    "            for i in range(len(sp[0])):\n",
+    "                l, n, t = sp[0][i], sp[1][i], sp[2][i]\n",
+    "                count_spikes[l][n] = count_spikes[l][n] + 1\n",
+    "            interlayers = []\n",
+    "            for i in range(layers-1):\n",
+    "                zscores = zscore(np.diff(count_spikes, axis = 0)[i])\n",
+    "                layerweights = []\n",
+    "                for j in range(num_neurons):\n",
+    "                    if zscores[j] <= X: layerweights.append(percentage*omega_global)\n",
+    "                    else: layerweights.append(omega_global)\n",
+    "                interlayers.append(layerweights)\n",
+    "\n",
+    "        elif method == 'global':\n",
+    "            for i in range(len(sp[0])):\n",
+    "                l, n, t = sp[0][i], sp[1][i], sp[2][i]\n",
+    "                count_spikes[l][n] = count_spikes[l][n] + 1\n",
+    "            interlayers = []\n",
+    "            zscores = zscore(sum(np.diff(count_spikes, axis = 0)))\n",
+    "            for i in range(layers-1):\n",
+    "                layerweights = []\n",
+    "                for j in range(num_neurons):\n",
+    "                    if zscores[j] <= X: layerweights.append(percentage*omega_global)\n",
+    "                    else: layerweights.append(omega_global)\n",
+    "                interlayers.append(layerweights)\n",
+    "        return(interlayers)\n",
+    "    \n",
+    "    def make_tensor(self, rank, threshold, update_method, **kwargs):\n",
+    "        \n",
+    "        #Make tensor according to one of four methods\n",
+    "        if update_method == 'local' or update_method == 'global': \n",
+    "            tensor = np.zeros((self.size, self.size, int((2*self.length)-1)))\n",
+    "            inters = self.update_interlayer(kwargs['spikes'], 0.5, 1, 0.01, update_method)\n",
+    "            for i in range(int((2*self.length)-1)):\n",
+    "                if i%2 == 0:\n",
+    "                    tensor[:,:,i] = self.threshold(self.list_adjacency[int(i/2)], threshold)\n",
+    "                else:\n",
+    "                    tensor[:,:,i] = np.diag(inters[int((i-1)/2)])\n",
+    "            X = tl.tensor(tensor)\n",
+    "        \n",
+    "        elif update_method == 'neighborhood':\n",
+    "            tensor = np.zeros((self.size, self.size, int((2*self.length)-1)))\n",
+    "            updated_interlayer_indices, updated_interlayer_weights = self.get_normalized_outlinks(self.list_adjacency, 1)\n",
+    "            for i in range(int((2*self.length)-1)):\n",
+    "                if i%2 == 0:\n",
+    "                    tensor[:,:,i] = self.threshold(self.list_adjacency[int(i/2)], threshold)\n",
+    "                else:\n",
+    "                    inter_layer = np.zeros((self.size,self.size))\n",
+    "                    for k in range(self.size):\n",
+    "                        w, nbr = self.neighborhood_flow(int(i/2), k, updated_interlayer_indices, updated_interlayer_weights, threshold)\n",
+    "                        if np.isnan(w):\n",
+    "                            w = 1.0\n",
+    "                        for n in nbr:\n",
+    "                            inter_layer[k,int(n)] = w\n",
+    "                    tensor[:,:,i] = inter_layer\n",
+    "            X = tl.tensor(tensor)\n",
+    "    \n",
+    "        elif update_method == None:\n",
+    "            tensor = np.zeros((self.size, self.size, int((2*self.length)-1)))\n",
+    "            for i in range(self.length):\n",
+    "                tensor[:,:,i] = self.threshold(self.list_adjacency[i], threshold)\n",
+    "            X = tl.tensor(tensor)\n",
+    "            \n",
+    "        #solve for PARAFAC decomposition\n",
+    "        weights_parafac, factors_parafac = non_negative_parafac(X, rank = rank, n_iter_max = 500, init = 'random')\n",
+    "\n",
+    "        return(weights_parafac, factors_parafac)\n",
+    "    \n",
+    "    def process_tensor(self, factors, rank):\n",
+    "        comms = []\n",
+    "        membership = [[] for r in range(rank)]\n",
+    "        for i in range(self.length):\n",
+    "            for j in range(self.size):\n",
+    "                comm_id = np.argmax(((factors[0][j]+factors[1][j])/2)*factors[2][i])\n",
+    "                comms.append(comm_id)\n",
+    "                membership[comm_id].append((j,i))\n",
+    "        return(membership, comms)\n",
+    "    \n",
+    "    def process_matrices(self, threshs):\n",
+    "        processed_matrices = {}\n",
+    "        for k, f in enumerate(threshs):\n",
+    "            edge_lists = [[] for i in range(self.length)]\n",
+    "            for i in range(self.length):\n",
+    "                A = padded_adjacencies[i]\n",
+    "                firing = np.transpose(np.nonzero(np.triu(A)))\n",
+    "                for j,m in enumerate(firing):\n",
+    "                    if A[m[0],m[1]]<f: pass\n",
+    "                    else: \n",
+    "                        quadreplet =(m[0], m[1], A[m[0], m[1]], i)\n",
+    "                        edge_lists[i].append(quadreplet)\n",
+    "            processed_matrices['%.2f'%f] = edge_lists\n",
+    "        return(processed_matrices)\n",
+    "    \n",
+    "    def dsbm_via_graphtool(self, edge_list, deg):\n",
+    "        graphs = []\n",
+    "\n",
+    "        g = Graph()\n",
+    "        graphs.append(g)\n",
+    "        graphs[0].add_vertex(self.size)\n",
+    "        e_weight = graphs[0].new_ep(\"double\")\n",
+    "        e_layer = graphs[0].new_ep(\"int\")\n",
+    "        n_id = graphs[0].new_vp(\"int\", vals = [i for i in range(self.size)])\n",
+    "        graphs[0].add_edge_list(edge_list[0], eprops=[e_weight, e_layer])\n",
+    "        graphs[0].edge_properties[\"edge_weight\"] = e_weight\n",
+    "        graphs[0].edge_properties[\"edge_layer\"] = e_layer\n",
+    "    \n",
+    "    \n",
+    "        G = graphs[0]\n",
+    "\n",
+    "        for l in range(1,self.length):\n",
+    "            g = Graph()\n",
+    "            graphs.append(g)\n",
+    "            graphs[l].add_vertex(self.size)\n",
+    "            e_weight = graphs[l].new_ep(\"double\")\n",
+    "            e_layer = graphs[l].new_ep(\"int\")\n",
+    "            n_id = graphs[l].new_vp(\"int\", vals = [i for i in range(self.size)])\n",
+    "            graphs[l].add_edge_list(edge_list[l], eprops=[e_weight, e_layer])\n",
+    "            graphs[l].edge_properties[\"edge_weight\"] = e_weight\n",
+    "            graphs[l].edge_properties[\"edge_layer\"] = e_layer\n",
+    "        \n",
+    "            G = graph_union(G, graphs[l], include = False, internal_props = True)\n",
+    "\n",
+    "        state = LayeredBlockState(G, deg_corr = deg, ec = G.ep.edge_layer,  recs=[G.ep.edge_weight], rec_types=[\"real-exponential\"],  layers = True, overlap = True)\n",
+    "    \n",
+    "        labels = [comm_id for comm_id in state.get_nonoverlap_blocks()]\n",
+    "        \n",
+    "        number_of_colors = len(np.unique(labels))\n",
+    "        membership = [[] for i in range(number_of_colors)]\n",
+    "        for i in range(self.size):#(num_neurons*layers):\n",
+    "            for j in range(self.length):\n",
+    "                node_id = labels[j*self.size+i]\n",
+    "                membership[node_id].append((i,j))\n",
+    "        return(membership, labels)\n",
+    "        \n",
+    "    \n",
+    "    def community_consensus_iterative(self, C):\n",
+    "        ## function finding the consensus of a given set of partitions. refer to the paper:\n",
+    "        ## 'Robust detection of dynamic community structure in networks', Danielle S. Bassett, \n",
+    "        ## Mason A. Porter, Nicholas F. Wymbs, Scott T. Grafton, Jean M. Carlson et al.\n",
+    "        \n",
+    "        \n",
+    "        npart,m  = C.shape \n",
+    "        C_rand3 = np.zeros((C.shape)) #permuted version of C\n",
+    "        X = np.zeros((m,m)) #Nodal association matrix for C\n",
+    "        X_rand3 = X # Random nodal association matrix for C_rand3\n",
+    "\n",
+    "        # randomly permute rows of C\n",
+    "        for i in range(npart):\n",
+    "            C_rand3[i,:] = C[i,np.random.permutation(m)]\n",
+    "            for k in range(m):\n",
+    "                for p in range(m):\n",
+    "                    if int(C[i,k]) == int(C[i,p]): X[p,k] = X[p,k] + 1 #(i,j) is the # of times node i and j are assigned in the same comm\n",
+    "                    if int(C_rand3[i,k]) == int(C_rand3[i,p]): X_rand3[p,k] = X_rand3[p,k] + 1 #(i,j) is the # of times node i and j are expected to be assigned in the same comm by chance\n",
+    "        #thresholding\n",
+    "        #keep only associated assignments that occur more often than expected in the random data\n",
+    "\n",
+    "        X_new3 = np.zeros((m,m))\n",
+    "        X_new3[X>(np.max(np.triu(X_rand3,1)))/2] = X[X>(np.max(np.triu(X_rand3,1)))/2]\n",
+    "        \n",
+    "        ##turn thresholded nodal association matrix into igraph\n",
+    "        edge_list = []\n",
+    "        weight_list = []\n",
+    "        for k,e in enumerate(np.transpose(np.nonzero(X_new3))):\n",
+    "            i,j = e[0], e[1]\n",
+    "            pair = (i,j)\n",
+    "            edge_list.append(pair)\n",
+    "            weight_list.append(X_new3[i][j])\n",
+    "        \n",
+    "        G = ig.Graph()\n",
+    "        G.add_vertices(m)\n",
+    "        G.add_edges(edge_list)\n",
+    "        G.es['weight'] = weight_list\n",
+    "        G.vs['id'] = list(range(m))\n",
+    "        \n",
+    "        optimiser = la.Optimiser()\n",
+    "        partition = la.ModularityVertexPartition(G, weights = 'weight')\n",
+    "        diff = optimiser.optimise_partition(partition, n_iterations = -1)\n",
+    "        \n",
+    "        return(partition)\n",
+    "    \n",
+    "    def run_community_detection(self, method, update_method = None, consensus = False, **kwargs):\n",
+    "        '''\n",
+    "        Main Function to run community detection.\n",
+    "        \n",
+    "        Parameters\n",
+    "        ===========\n",
+    "        method: str\n",
+    "            Either MMM, Infomap or PARA_FACT(Tensor Factorization) indicating the community detection method\n",
+    "        update_method: str\n",
+    "            Interlayer edges will be processed based on one of the three methods, either \n",
+    "            local, global or neigborhood see `infomap`.\n",
+    "        consensus: bool\n",
+    "            Statistically significant partitions will be found from a given set of partitions.\n",
+    "        interlayers: 1-D array like\n",
+    "            A range of values for setting the interlayer edges of the network.\n",
+    "        resolutions: 1-D array like\n",
+    "            A range of values for the resolution parameters.\n",
+    "        thresholds: 1-D array like\n",
+    "            A range of values to threshold the network.\n",
+    "        spikes: 2-D array\n",
+    "            Initial array containing the spikes.\n",
+    "        \n",
+    "        '''\n",
+    "        \n",
+    "        if method == 'MMM':\n",
+    "            grid = len(kwargs['interlayers'])\n",
+    "            membership_partitions = {}\n",
+    "            C = np.zeros((grid*grid, self.size*self.length))\n",
+    "            for i,e in enumerate(kwargs['interlayers']):\n",
+    "                membership_labels = []\n",
+    "                igraphs = self.create_igraph()\n",
+    "    \n",
+    "                ##update interlayer edges\n",
+    "                if update_method == 'local' or update_method == 'global': \n",
+    "            \n",
+    "                    inter_edge = self.update_interlayer(kwargs['spikes'], X = 0.5, omega_global = e, percentage = 0.01, method = update_method)    \n",
+    "                    for j,f in enumerate(kwargs['resolutions']):\n",
+    "                        parts, inter_parts = self.leiden(igraphs, inter_edge, f)\n",
+    "                    \n",
+    "                        C[i*grid+j,:] = inter_parts.membership\n",
+    "                        comm_labels, comm_size  = self.membership(inter_parts)\n",
+    "                        membership_labels.append(comm_labels)\n",
+    "                        \n",
+    "                elif update_method == 'neighborhood':\n",
+    "                    interlayer_indices, interlayer_weights = self.get_normalized_outlinks(self.list_adjacency, e)\n",
+    "                    for j,f in enumerate(kwargs['resolutions']):\n",
+    "                        layers, interslice_layer, G_full = self.time_slices_to_layers(igraphs, interlayer_indices, interlayer_weights, interslice_weight = e)\n",
+    "                        partitions = [la.RBConfigurationVertexPartition(H, weights = 'weight', resolution_parameter = f) for H in layers]\n",
+    "        \n",
+    "                        interslice_partition = la.RBConfigurationVertexPartition(interslice_layer, weights = 'weight', resolution_parameter = 0)\n",
+    "                                                     \n",
+    "                        optimiser = la.Optimiser()\n",
+    "        \n",
+    "                        diff = optimiser.optimise_partition_multiplex(partitions + [interslice_partition])\n",
+    "                        C[i*grid+j,:] = interslice_partition.membership\n",
+    "                        comm_labels, comm_size  = self.membership(interslice_partition)\n",
+    "                        membership_labels.append(comm_labels)\n",
+    "                   \n",
+    "                elif update_method == None:\n",
+    "                    \n",
+    "                    for j,f in enumerate(kwargs['resolutions']):\n",
+    "                        parts, inter_parts = self.leiden(igraphs, e, f)\n",
+    "                    \n",
+    "                        C[i*grid+j,:] = inter_parts.membership\n",
+    "                        comm_labels, comm_size  = self.membership(inter_parts)\n",
+    "                        membership_labels.append(comm_labels)\n",
+    "                    \n",
+    "                membership_partitions['interlayer=%.3f'%e] = membership_labels\n",
+    "            \n",
+    "        elif method == 'infomap':\n",
+    "            grid = len(kwargs['interlayers'])\n",
+    "            membership_partitions = {}\n",
+    "            C = np.zeros((grid*grid, self.size*self.length))\n",
+    "            dtype = [('layer',int),('nodeid',int),('module', int)]\n",
+    "\n",
+    "            for i, interlayer in enumerate(kwargs['interlayers']):\n",
+    "                inter_membership = []\n",
+    "                for j, thresh in enumerate(kwargs['thresholds']):\n",
+    "                    \n",
+    "                    IM = self.infomap(interlayer, thresh, update_method, **kwargs)\n",
+    "                    \n",
+    "                    membership = [[] for i in range(IM.num_top_modules)]\n",
+    "                    for node in IM.nodes:\n",
+    "                        membership[int(node.module_id-1)].append((node.node_id, node.layer_id))\n",
+    "                    inter_membership.append(membership)\n",
+    "        \n",
+    "                    ordered_set = []\n",
+    "                    for node in IM.nodes:\n",
+    "                        ordered_set.append((node.layer_id, node.node_id, node.module_id))\n",
+    "                    ordered_nodes = np.array(ordered_set , dtype = dtype)\n",
+    "                    \n",
+    "                    C[i*grid+j,:] = [node[2] for node in np.sort(ordered_nodes, order = ['layer', 'nodeid'])]\n",
+    "        \n",
+    "                membership_partitions['interlayer=%.3f'%interlayer] = inter_membership\n",
+    "        \n",
+    "        elif method == 'PARA_FACT':\n",
+    "            grid = len(kwargs['ranks'])\n",
+    "            membership_partitions = {}\n",
+    "            C = np.zeros((grid*grid, self.size*self.length))\n",
+    "            \n",
+    "            for i, r in enumerate(kwargs['ranks']):\n",
+    "                inter_membership = []\n",
+    "                for j, thresh in enumerate(kwargs['thresholds']):\n",
+    "                    weights, factors = self.make_tensor(r, thresh, update_method, **kwargs)\n",
+    "                    membership, comm  = self.process_tensor(factors, r)\n",
+    "                    inter_membership.append(membership)\n",
+    "                    C[i*grid+j,:] = comm\n",
+    "                membership_partitions['rank=%d'%r] = inter_membership\n",
+    "                \n",
+    "        elif method == 'DSBM':\n",
+    "            \n",
+    "            grid = len(kwargs['degree_correction'])\n",
+    "            membership_partitions = {}\n",
+    "            C = np.zeros((grid*grid, self.size*self.length))\n",
+    "            edge_list = self.process_matrices(kwargs['thresholds'])\n",
+    "            for i, deg in enumerate(kwargs['degree_correction']):\n",
+    "                inter_membership = []\n",
+    "                for j, thresh in enumerate(kwargs['thresholds']):\n",
+    "                    membership, comm  = self.dsbm_via_graphtool(edge_list['%.2f'%thresh], deg)\n",
+    "                    inter_membership.append(membership)\n",
+    "                    C[i*grid+j,:] = comm\n",
+    "                membership_partitions['degree_correction=%s'%deg] = inter_membership\n",
+    "        \n",
+    "        if consensus: \n",
+    "            return(self.membership(self.community_consensus_iterative(C))[0], C)\n",
+    "        else: \n",
+    "            return(membership_partitions, C)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.7.6"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}

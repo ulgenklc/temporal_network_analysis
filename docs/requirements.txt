@@ -1,0 +1,13 @@
+numpy
+math
+random
+mathplotlib
+warnings
+scipy
+leidenalg
+igraph
+graph_tool
+infomap
+tensorly
+sphinx_glpi_theme
+

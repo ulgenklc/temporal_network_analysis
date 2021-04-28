@@ -1,4 +1,4 @@
-The ``geometric_network`` class
+The ``temporal_network`` class
 ***************************************
 
 .. autoclass:: Temporal_Community_Detection.temporal_network

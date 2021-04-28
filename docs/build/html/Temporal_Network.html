@@ -1,0 +1,898 @@
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>The geometric_network class &mdash; Community Characterization in Temporal Networks 0.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+    <link rel="stylesheet" href="_static/jquery.fancybox.min.css" type="text/css" />
+  
+    <link rel="stylesheet" href="_static/glpi.css" type="text/css" />
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Community Characterization in Temporal Networks 0.0.1 documentation" href="index.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Community Characterization in Temporal Networks
+          
+
+          
+          </a>
+
+          
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">The <code class="docutils literal notranslate"><span class="pre">geometric_network</span></code> class</a></li>
+</ul>
+</div>
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Community Characterization in Temporal Networks</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>The <code class="docutils literal notranslate"><span class="pre">geometric_network</span></code> class</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/Temporal_Network.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="the-geometric-network-class">
+<h1>The <code class="docutils literal notranslate"><span class="pre">geometric_network</span></code> class<a class="headerlink" href="#the-geometric-network-class" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="Temporal_Community_Detection.temporal_network">
+<em class="property">class </em><code class="sig-prename descclassname">Temporal_Community_Detection.</code><code class="sig-name descname">temporal_network</code><span class="sig-paren">(</span><em class="sig-param">size</em>, <em class="sig-param">length</em>, <em class="sig-param">window_size</em>, <em class="sig-param">data</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Temporal network object to run dynamic community detection and other multilayer network diagnostics on.
+Temporal network is a memoryless multiplex network where every node exists in every layer.</p>
+<dl class="attribute">
+<dt id="Temporal_Community_Detection.temporal_network.size">
+<code class="sig-name descname">size</code><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of nodes in any given layer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Temporal_Community_Detection.temporal_network.length">
+<code class="sig-name descname">length</code><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.length" title="Permalink to this definition">¶</a></dt>
+<dd><p>Total number of layers.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Temporal_Community_Detection.temporal_network.nodes">
+<code class="sig-name descname">nodes</code><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.nodes" title="Permalink to this definition">¶</a></dt>
+<dd><p>A list of node ids starting from 0 to <code class="docutils literal notranslate"><span class="pre">size-1</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Temporal_Community_Detection.temporal_network.windowsize">
+<code class="sig-name descname">windowsize</code><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.windowsize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Assuming that temporal network is created from a continous time-series data, windowsize is the size
+of the windows we are splitting the time-series into.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Temporal_Community_Detection.temporal_network.supra_adjacency">
+<code class="sig-name descname">supra_adjacency</code><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.supra_adjacency" title="Permalink to this definition">¶</a></dt>
+<dd><p>The supra adjacency matrix to encode the connectivity information of the multilayer network.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>array, <code class="docutils literal notranslate"><span class="pre">size*length</span> <span class="pre">x</span> <span class="pre">size*length</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Temporal_Community_Detection.temporal_network.list_adjacency">
+<code class="sig-name descname">list_adjacency</code><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.list_adjacency" title="Permalink to this definition">¶</a></dt>
+<dd><p>A list of arrays of length <code class="docutils literal notranslate"><span class="pre">length</span></code> where each array is <code class="docutils literal notranslate"><span class="pre">size</span> <span class="pre">x</span> <span class="pre">size</span></code> encoding the connectivity
+information of each layer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>list, [array1, array2, ..]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="Temporal_Community_Detection.temporal_network.edge_list">
+<code class="sig-name descname">edge_list</code><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.edge_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>A list of length <code class="docutils literal notranslate"><span class="pre">length</span></code> of lists where each element of the sublist is a 4-tuple (i,j,w,t) indicating
+there is an edge from node i to node j of nonzero weight w in the layer t. So, every quadruplet in the
+t’th sublist in <code class="docutils literal notranslate"><span class="pre">edge_list</span></code> has 4th entry t.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>list, [list1, list2, ..]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>size</strong> (<em>int</em>) – Number of nodes in any given layer.</p></li>
+<li><p><strong>length</strong> (<em>int</em>) – Total number of layers.</p></li>
+<li><p><strong>window_size</strong> (<em>int</em>) – Size of the windows the time series will be divided into.</p></li>
+<li><p><strong>data</strong> (<em>str</em>) – <p><code class="docutils literal notranslate"><span class="pre">temporal_network</span></code> accepts three types of connectivity input, <code class="docutils literal notranslate"><span class="pre">supra_adjacency</span></code>, <code class="docutils literal notranslate"><span class="pre">list_adjacency</span></code>
+and <code class="docutils literal notranslate"><span class="pre">edge_list</span></code> (see the attributes). So, we must specify which one of these types we are submitting
+the connectivity information to the <code class="docutils literal notranslate"><span class="pre">temporal_network</span></code>. Accordingly, this parameter can be one of the
+<code class="docutils literal notranslate"><span class="pre">supra__adjacency</span></code>, <code class="docutils literal notranslate"><span class="pre">list__adjacency</span></code> and <code class="docutils literal notranslate"><span class="pre">edge__list</span></code>, respectively.</p>
+<p>Once the data type is understood, object converts the given input into the other two data types so that
+if it needs to use one of the other types(it is easier to work with <code class="docutils literal notranslate"><span class="pre">list_adjacency</span></code> for example, but
+some helper functions from different libraries such as <code class="docutils literal notranslate"><span class="pre">igraph</span></code>, processes <code class="docutils literal notranslate"><span class="pre">edge_list</span></code> better),
+it can switch back and forth quicker.</p>
+</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>supra_adjacency: array, <code class="docutils literal notranslate"><span class="pre">size*length</span> <span class="pre">x</span> <span class="pre">size*length</span></code></dt><dd><p>The supra adjacency matrix to encode the connectivity information of the multilayer network. Should
+be provided if <code class="docutils literal notranslate"><span class="pre">data</span> <span class="pre">=</span> <span class="pre">supra__adjacency</span></code>.</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>list_adjacency: list, [array1, array2, …]</dt><dd><p>A list of arrays of length <code class="docutils literal notranslate"><span class="pre">length</span></code> where each array is <code class="docutils literal notranslate"><span class="pre">size</span> <span class="pre">x</span> <span class="pre">size</span></code> encoding the connectivity
+information of each layer. Should be provided if <code class="docutils literal notranslate"><span class="pre">data</span> <span class="pre">=</span> <span class="pre">list__adjacency</span></code>.</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>edge_list: list, [list1, list2, …]</dt><dd><p>A list of length <code class="docutils literal notranslate"><span class="pre">length</span></code> of lists where each element of the sublist is a 4-tuple (i,j,w,t)
+indicating there is an edge from node i to node j of nonzero weight w in the layer t. So, every
+quadruplet in the t’th sublist in <code class="docutils literal notranslate"><span class="pre">edge_list</span></code> has 4th entry t. Should be provided if
+<code class="docutils literal notranslate"><span class="pre">data</span> <span class="pre">=</span> <span class="pre">edge__list</span></code>.</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>**kwargs</strong> – <dl>
+<dt>omega: int</dt><dd><p>Interlayer edge coupling strength. Should be provided if data is <code class="docutils literal notranslate"><span class="pre">list__adjacency</span></code> or
+<code class="docutils literal notranslate"><span class="pre">edge__list</span></code>. For now, we will assume all the coupling is going to be diagonal with a constant
+strength.</p>
+<p>TODO: extend omega to a vector(for differing interlayer diagonal coupling strengths) and to
+a matrix(for non-diagonal coupling).</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>kind:</dt><dd><p>Interlayer coupling type. Can be either <code class="docutils literal notranslate"><span class="pre">ordinal</span></code> where only the adjacent layers are coupled or
+<code class="docutils literal notranslate"><span class="pre">cardinal</span></code> where all layers are pairwise coupled with strength <code class="docutils literal notranslate"><span class="pre">omega</span></code>. Should be provided if
+data is <code class="docutils literal notranslate"><span class="pre">list__adjacency</span></code> or <code class="docutils literal notranslate"><span class="pre">edge__list</span></code>.</p>
+</dd>
+</dl>
+</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.aggragate">
+<code class="sig-name descname">aggragate</code><span class="sig-paren">(</span><em class="sig-param">normalized=True</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.aggragate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function to aggragate layers of the temporal network.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>normalized</strong> (<em>Bool</em>) – divides the total edge weight of each edge by the number of layers(<code class="docutils literal notranslate"><span class="pre">self.length</span></code>).</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">x</span> <span class="pre">n</span></code> aggragated adjacecy array.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.bin_time_series">
+<code class="sig-name descname">bin_time_series</code><span class="sig-paren">(</span><em class="sig-param">array</em>, <em class="sig-param">gaussian=True</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.bin_time_series" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function for windowing a given time series of spikes into a desired size matrices.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>array</strong> (<em>np.array</em>) – <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">x</span> <span class="pre">t</span></code> array where n is the number of neurons and t is the length of the time series.</p></li>
+<li><p><strong>gaussain</strong> (<em>bool</em><em> (</em><em>Default: True</em><em>)</em>) – If True, every spike in the time series is multiplied by a 1d-gaussian of size <code class="docutils literal notranslate"><span class="pre">sigma</span></code>.</p></li>
+<li><p><strong>**kwargs</strong> – sigma: size of the gaussian (See gaussian_filter).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>A</strong> – Matrix of size <code class="docutils literal notranslate"><span class="pre">l</span> <span class="pre">x</span> <span class="pre">n</span> <span class="pre">x</span> <span class="pre">windowsize</span></code> where l is the number of layers <code class="docutils literal notranslate"><span class="pre">(=</span> <span class="pre">t/self.windowsize)</span></code>, n is the number of neurons.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.binarize">
+<code class="sig-name descname">binarize</code><span class="sig-paren">(</span><em class="sig-param">array</em>, <em class="sig-param">thresh=None</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.binarize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function to binarize the network edges.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>array</strong> (<em>np.array</em>) – Input array corresponding to one layer of the temporal network.</p></li>
+<li><p><strong>thresh</strong> (<em>float</em><em> (</em><em>Default: None</em><em>)</em>) – if provided, edges with weight less than <code class="docutils literal notranslate"><span class="pre">thresh</span></code> is going to be set to 0 and 1 otherwise. If not provided, thresh = 0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>binary_spikes</strong> – <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">x</span> <span class="pre">n</span></code> binary adjacency matrix.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.community">
+<code class="sig-name descname">community</code><span class="sig-paren">(</span><em class="sig-param">membership</em>, <em class="sig-param">ax</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.community" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function to visualize the community assignment of the nodes. At every run, a random set of colors are generated
+to indicate community assignment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>membership</strong> (<em>list</em>) – A list of length <code class="docutils literal notranslate"><span class="pre">number</span> <span class="pre">of</span> <span class="pre">communities</span></code> where each list contains (node,time) pairs indicating the possesion of that
+<code class="docutils literal notranslate"><span class="pre">node</span></code> at the <code class="docutils literal notranslate"><span class="pre">time</span></code> to that community.</p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.axis object</em>) – An axis for plotting of the communites.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>comms</strong> (array of shape <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">x</span> <span class="pre">t</span></code>) – array to be visualized.</p></li>
+<li><p><strong>color</strong> (<em>list</em>) – list of colors to be plotted for future use.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.community_consensus_iterative">
+<code class="sig-name descname">community_consensus_iterative</code><span class="sig-paren">(</span><em class="sig-param">C</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.community_consensus_iterative" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function finding the consensus on the given set of partitions. See the paper:</p>
+<p>‘Robust detection of dynamic community structure in networks’, Danielle S. Bassett,
+Mason A. Porter, Nicholas F. Wymbs, Scott T. Grafton, Jean M. Carlson et al.</p>
+<p>We apply Leiden algorithm to maximize modularity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>C</strong> (<em>array</em>) – Matrix of size <code class="docutils literal notranslate"><span class="pre">parameter_space</span> <span class="pre">x</span> <span class="pre">(length</span> <span class="pre">x</span> <span class="pre">size)</span></code> where each row is the community assignment of the corresponding
+parameters.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>partition</strong> – See <a class="reference external" href="https://leidenalg.readthedocs.io/en/stable/">https://leidenalg.readthedocs.io/en/stable/</a></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Leidenalg object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.create_igraph">
+<code class="sig-name descname">create_igraph</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.create_igraph" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function that creates igraphs for modularity maximization.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.disjoint_union_attrs">
+<code class="sig-name descname">disjoint_union_attrs</code><span class="sig-paren">(</span><em class="sig-param">graphs</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.disjoint_union_attrs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function to take the disjoint union of igraph objects. See <code class="docutils literal notranslate"><span class="pre">slices_to_layers</span></code>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.dsbm_via_graphtool">
+<code class="sig-name descname">dsbm_via_graphtool</code><span class="sig-paren">(</span><em class="sig-param">edge_list</em>, <em class="sig-param">deg</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.dsbm_via_graphtool" title="Permalink to this definition">¶</a></dt>
+<dd><p>Running DSBM using <a class="reference external" href="https://graph-tool.skewed.de">https://graph-tool.skewed.de</a></p>
+<p>Overlap is True by default according to <a class="reference external" href="https://journals.aps.org/pre/abstract/10.1103/PhysRevE.92.042807">https://journals.aps.org/pre/abstract/10.1103/PhysRevE.92.042807</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>edge_list</strong> (<em>list</em><em> (</em><em>[</em><em>list1</em><em>,</em><em>list2</em><em>,</em><em>..</em><em>]</em><em>)</em>) – List of lists of length <code class="docutils literal notranslate"><span class="pre">length``where</span> <span class="pre">each</span> <span class="pre">list</span> <span class="pre">contains</span> <span class="pre">the</span> <span class="pre">edge</span> <span class="pre">list</span> <span class="pre">of</span> <span class="pre">the</span> <span class="pre">corresponding</span> <span class="pre">layer.</span> <span class="pre">Output</span> <span class="pre">of</span>
+<span class="pre">``process_matrices</span></code>.</p></li>
+<li><p><strong>deg</strong> (<em>Bool</em>) – If True degree_corrected model will be used and vice versa.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>membership</strong> (<em>list([list1,list2,…])</em>) – List of lists of length <code class="docutils literal notranslate"><span class="pre">number_of_communities</span></code> where each list contains the community assignment of the nodes
+it contains.</p></li>
+<li><p><strong>labels</strong> (<em>list</em>) – List of length <code class="docutils literal notranslate"><span class="pre">length</span> <span class="pre">x</span> <span class="pre">size</span></code> containing all the community assignments.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.edgelist2edges">
+<code class="sig-name descname">edgelist2edges</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.edgelist2edges" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function for creating edge lists.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><strong>all_edges</strong> (<em>list ([list1,list2,…])</em>) – A list of length <cite>length</cite> lists where each list contains node pairs (i,j) in the corresponding layer.</p></li>
+<li><p><strong>all_weights</strong> (<em>list ([list1, list2,…])</em>) – A list of length <cite>length</cite> lists where each list contains floats in the corresponding layer indicating the edge weight between the node pair.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.get_attrs_or_nones">
+<code class="sig-name descname">get_attrs_or_nones</code><span class="sig-paren">(</span><em class="sig-param">seq</em>, <em class="sig-param">attr_name</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.get_attrs_or_nones" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper method.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.get_normalized_outlinks">
+<code class="sig-name descname">get_normalized_outlinks</code><span class="sig-paren">(</span><em class="sig-param">thresholded_adjacency</em>, <em class="sig-param">interlayer</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.get_normalized_outlinks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function for neighborhood coupling that finds the interlayer neighbors of a every node in the next and
+previous layers and normalizes edge weights.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>thresholded_adjacency</strong> (<em>list</em>) – List of adjacency matrices corresponding to every layer of the temporal network.</p></li>
+<li><p><strong>interlayer</strong> (<em>float</em>) – The node itselves edge weight that is connected to its future(or past) self that is the maximal among other
+interlayer neighbors.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>interlayer_indices</strong> (<em>dict (dict[‘t,i’])</em>) – Dictionary of interlayer neighbors of a node i in layer t.</p></li>
+<li><p><strong>interlayer_weights</strong> (<em>dict (dict[‘t,i’])</em>) – Dictionary of interlayer weights corresponding to indices of node i in layer t.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.infomap">
+<code class="sig-name descname">infomap</code><span class="sig-paren">(</span><em class="sig-param">inter_edge</em>, <em class="sig-param">threshold</em>, <em class="sig-param">update_method=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.infomap" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function that runs Infomap algorithm on the temporal network.</p>
+<p><a class="reference external" href="https://www.mapequation.org">https://www.mapequation.org</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>inter_edge</strong> (<em>float</em>) – Interlayer edge weight.</p></li>
+<li><p><strong>threshold</strong> (<em>float</em>) – Value for thresholding the network edges. Functional networks obtained by correlation is going to
+need thresholding with infomap.</p></li>
+<li><p><strong>update_method</strong> (None, <code class="docutils literal notranslate"><span class="pre">local</span></code>, <code class="docutils literal notranslate"><span class="pre">global</span></code> or <code class="docutils literal notranslate"><span class="pre">neighborhood</span></code>. Default None.) – Updating the interlayer edges according to either of these methods.</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>spikes: array</dt><dd><p>if <code class="docutils literal notranslate"><span class="pre">local</span></code> or <code class="docutils literal notranslate"><span class="pre">global</span></code> update method is being used, initial <code class="docutils literal notranslate"><span class="pre">spikes</span></code> that is used to obtain the correlation
+matrices needs to be provided.</p>
+</dd>
+</dl>
+</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.leiden">
+<code class="sig-name descname">leiden</code><span class="sig-paren">(</span><em class="sig-param">G</em>, <em class="sig-param">interslice</em>, <em class="sig-param">resolution</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.leiden" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function that runs Multilayer Modularity Maximization using Leiden solver.</p>
+<p>Traag, V.A., Waltman, L. &amp; van Eck, N.J. From Louvain to Leiden: guaranteeing well-connected communities.
+Sci Rep 9, 5233 (2019). <a class="reference external" href="https://doi.org/10.1038/s41598-019-41695-z">https://doi.org/10.1038/s41598-019-41695-z</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>G</strong> (<em>list</em><em> (</em><em>[</em><em>g1</em><em>,</em><em>g2</em><em>,</em><em>..</em><em>]</em><em>)</em>) – A list of igraph objects corresponding to different layers of the temporal network.</p></li>
+<li><p><strong>interslice</strong> (<em>float</em>) – Leidenalg package automatically utilizes diagonal coupling of layers. If a float is provided as <code class="docutils literal notranslate"><span class="pre">interslice</span></code>
+a uniform interlayer coupling weight is going to be applied for all nodes in all layers. If a list of length <code class="docutils literal notranslate"><span class="pre">size</span></code>
+is provided, every node will be coupled with themselves with given weight. If a list of, length <code class="docutils literal notranslate"><span class="pre">length</span> <span class="pre">-1</span></code>,
+lists is provided, then you can tune individual interlayer weights as well.</p></li>
+<li><p><strong>resolution</strong> (<em>float</em>) – Resolution parameter.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>partitions</strong> (<em>leidenalg object. See https://leidenalg.readthedocs.io/en/stable/</em>)</p></li>
+<li><p><strong>interslice_partitions</strong> (<em>leidenalg object. See https://leidenalg.readthedocs.io/en/stable/</em>)</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.make_tensor">
+<code class="sig-name descname">make_tensor</code><span class="sig-paren">(</span><em class="sig-param">rank</em>, <em class="sig-param">threshold</em>, <em class="sig-param">update_method=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.make_tensor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function to utilize Tensor Factorization Approach described in:</p>
+<p><a class="reference external" href="https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0086028">https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0086028</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rank</strong> (<em>int</em>) – Input for predetermined number of communites to be found.</p></li>
+<li><p><strong>threshold</strong> (<em>float</em>) – Edge threshold for adjacency matrices.</p></li>
+<li><p><strong>update_method</strong> (<code class="docutils literal notranslate"><span class="pre">local</span></code>, <code class="docutils literal notranslate"><span class="pre">global</span></code> or <a href="#id1"><span class="problematic" id="id2">``</span></a>neighborhood``(Default: None)) – Updating the edges according to one of these methods although this is not an applied technique in the literature.
+Go with None unless you know what you are doing.</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>spikes: array</dt><dd><p>Initial spike train matrix of size <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">x</span> <span class="pre">t</span></code></p>
+</dd>
+</dl>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>weights_parafac</strong> (<em>array</em>) – See the paper.</p></li>
+<li><p><strong>factors_parafac</strong> (<em>array</em>) – See the paper.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.membership">
+<code class="sig-name descname">membership</code><span class="sig-paren">(</span><em class="sig-param">interslice_partition</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.membership" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the community assignments from the Leiden algorithm as tuple (n,t) where <code class="docutils literal notranslate"><span class="pre">n</span></code> is the node id <code class="docutils literal notranslate"><span class="pre">t</span></code> is the layer
+that node belongs to.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.neighborhood_flow">
+<code class="sig-name descname">neighborhood_flow</code><span class="sig-paren">(</span><em class="sig-param">layer</em>, <em class="sig-param">node</em>, <em class="sig-param">interlayer_indices</em>, <em class="sig-param">interlayer_weights</em>, <em class="sig-param">thresh</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.neighborhood_flow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function to evaluate the weights of the individual non-diagonal interlinks using jensenshannon entropy.
+We also threshold weaker interlinks and keep only the ones that have maximal interlayer edge weight for computational
+purposes. In this sense, we are coupling a maximal neighborhood around a node with previous and future layer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>layer</strong> (<em>int</em>) – Layer that node belongs to.</p></li>
+<li><p><strong>node</strong> (<em>int</em>) – Node ID</p></li>
+<li><p><strong>interlayer_indices</strong> (<em>dict</em>) – First output of the <code class="docutils literal notranslate"><span class="pre">get_normalized_outlinks</span></code>.</p></li>
+<li><p><strong>interlayer_weights</strong> (<em>dict</em>) – Second output of the <code class="docutils literal notranslate"><span class="pre">get_normalized_outlinks</span></code>.</p></li>
+<li><p><strong>thresh</strong> (<em>float</em>) – Value for thresholding the weakest <code class="docutils literal notranslate"><span class="pre">thresh</span></code> percentage of interlinks that this node has.</p></li>
+<li><p><strong>Return</strong> – </p></li>
+<li><p><strong>---------</strong> – </p></li>
+<li><p><strong>w</strong> (<em>float</em>) – Neighborhood coupling weight.</p></li>
+<li><p><strong>nbr</strong> (<em>dict</em>) – Thresholded list of maximal interlinks</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.neighbors">
+<code class="sig-name descname">neighbors</code><span class="sig-paren">(</span><em class="sig-param">node_id</em>, <em class="sig-param">layer</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.neighbors" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function for finding the neighbors of a given node.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>node_id</strong> (<em>int</em>) – ID of the node to be found the neighbors of.</p></li>
+<li><p><strong>layer</strong> (<em>int</em>) – Layer ID of the node that it belongs to.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>neighbors</strong> – list of node IDs of the neighbors of <code class="docutils literal notranslate"><span class="pre">node_id</span></code> in layer <code class="docutils literal notranslate"><span class="pre">layer</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.process_matrices">
+<code class="sig-name descname">process_matrices</code><span class="sig-paren">(</span><em class="sig-param">threshs</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.process_matrices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function preparing adjacency matrices into the pipeline for DSBM converting the matrix into an edge_list.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>threshs</strong> (<em>1-D array</em>) – Set of threshold values.</p></li>
+<li><p><strong>Returns</strong> – </p></li>
+<li><p><strong>-----------</strong> – </p></li>
+<li><p><strong>processed_matrices</strong> (<em>dict</em>) – Dictionary of edge list values corresponding to each given threshold value.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.process_tensor">
+<code class="sig-name descname">process_tensor</code><span class="sig-paren">(</span><em class="sig-param">factors</em>, <em class="sig-param">rank</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.process_tensor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function for converting the output of <code class="docutils literal notranslate"><span class="pre">make_tensor</span></code> as in the function <code class="docutils literal notranslate"><span class="pre">membership</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>factors</strong> (<em>array</em>) – First output of <code class="docutils literal notranslate"><span class="pre">make_tensor</span></code>.</p></li>
+<li><p><strong>rank</strong> (<em>int</em>) – Number of communities to be found which is an ad-hoc parameter in this algorithm.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>membership</strong> (<em>list ([list1,list2,…])</em>) – List of length <code class="docutils literal notranslate"><span class="pre">rank</span></code> of lists where each list contains the membership information of the nodes belonging to
+corresponding community.</p></li>
+<li><p><strong>comms</strong> (<em>list</em>) – List of length <code class="docutils literal notranslate"><span class="pre">length</span> <span class="pre">x</span> <span class="pre">size</span></code> for community assignment.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.raster_plot">
+<code class="sig-name descname">raster_plot</code><span class="sig-paren">(</span><em class="sig-param">spikes</em>, <em class="sig-param">ax</em>, <em class="sig-param">color=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.raster_plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots the raster plot of the spike activity on a given axis. if <code class="docutils literal notranslate"><span class="pre">color</span></code> provided, raster includes the community assignments.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>spikes</strong> (array <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">x</span> <span class="pre">t</span></code>) – Initial spike train array for <code class="docutils literal notranslate"><span class="pre">n</span></code> nodes of length <code class="docutils literal notranslate"><span class="pre">t</span></code>.</p></li>
+<li><p><strong>ax</strong> (<em>matplotlib.axis object</em>) – axis to be plotted.</p></li>
+<li><p><strong>color</strong> (<em>list</em>) – Second output of the <code class="docutils literal notranslate"><span class="pre">self.community</span></code>. List of colors of length <code class="docutils literal notranslate"><span class="pre">number</span> <span class="pre">of</span> <span class="pre">communities</span></code>.</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>comm_assignment: array</dt><dd><p>First output of the <code class="docutils literal notranslate"><span class="pre">self.community</span></code>. If not provided raster is going to be plotted blue.</p>
+</dd>
+</dl>
+</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.run_community_detection">
+<code class="sig-name descname">run_community_detection</code><span class="sig-paren">(</span><em class="sig-param">method</em>, <em class="sig-param">update_method=None</em>, <em class="sig-param">consensus=False</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.run_community_detection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrap-up function to run community detection using one of the 4 methods:</p>
+<ol class="arabic simple">
+<li><p>Multilayer Modularity Maximization (MMM): <a class="reference external" href="https://leidenalg.readthedocs.io/en/stable/">https://leidenalg.readthedocs.io/en/stable/</a></p></li>
+</ol>
+<ol class="upperalpha simple" start="16">
+<li><ol class="upperalpha simple" start="10">
+<li><p>Mucha, T. Richardson, K. Macon, M. A. Porter and J.-P. Onnela, Science 328, 876-878 (2010).</p></li>
+</ol>
+</li>
+</ol>
+<ol class="arabic simple" start="2">
+<li><p>Infomap: <a class="reference external" href="https://www.mapequation.org">https://www.mapequation.org</a></p></li>
+</ol>
+<p>Mapping higher-order network flows in memory and multilayer networks with Infomap, Daniel Edler, Ludvig Bohlin,
+and Martin Rosvall, arXiv:1706.04792v2.</p>
+<ol class="arabic simple" start="3">
+<li><p>Non-negative tensor factorization using PARAFAC: <a class="reference external" href="http://tensorly.org/stable/index.html">http://tensorly.org/stable/index.html</a></p></li>
+</ol>
+<p>Detecting the Community Structure and Activity Patterns of Temporal Networks: A Non-Negative Tensor Factorization
+Approach, Laetitia Gauvin , André Panisson, Ciro Cattuto.</p>
+<ol class="arabic simple" start="4">
+<li><p>Dynamical Stochastic Block Model (DSBM): <a class="reference external" href="https://graph-tool.skewed.de">https://graph-tool.skewed.de</a></p></li>
+</ol>
+<p>Inferring the mesoscale structure of layered, edge-valued, and time-varying networks, Tiago P. Peixoto, Phys. Rev. E, 2015.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>method</strong> (<em>str</em>) – Either <code class="docutils literal notranslate"><span class="pre">MMM</span></code>, <code class="docutils literal notranslate"><span class="pre">Infomap</span></code>, <code class="docutils literal notranslate"><span class="pre">PARA_FACT``(Tensor</span> <span class="pre">Factorization)</span> <span class="pre">or</span> <span class="pre">``DSBM</span></code> indicating the community detection method.</p></li>
+<li><p><strong>update_method</strong> (<em>str</em><em> (</em><em>Default: None</em><em>)</em>) – Interlayer edges will be processed based on one of the three methods, either
+‘local’, ‘global’ or ‘neigborhood’. Available only for <code class="docutils literal notranslate"><span class="pre">MMM</span></code> and <code class="docutils literal notranslate"><span class="pre">Infomap</span></code>.</p></li>
+<li><p><strong>consensus</strong> (<em>bool</em>) – Statistically significant partitions will be found from a given set of parameters. See <code class="docutils literal notranslate"><span class="pre">community_consensus_iterative</span></code>.</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>interlayers: 1-D array like</dt><dd><p>A range of values for setting the interlayer edges of the network. Pass this argument if you are using
+<code class="docutils literal notranslate"><span class="pre">MMM</span></code> or <code class="docutils literal notranslate"><span class="pre">Infomap</span></code>.</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>resolutions: 1-D array like</dt><dd><p>A range of values for the resolution parameters. Pass this argument if you are using <code class="docutils literal notranslate"><span class="pre">MMM</span></code>.</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>thresholds: 1-D array like</dt><dd><p>A range of values to threshold the network. Pass this argumment if you are using <code class="docutils literal notranslate"><span class="pre">Infomap</span></code>, <code class="docutils literal notranslate"><span class="pre">PARA_FACT</span></code>
+or <code class="docutils literal notranslate"><span class="pre">DSBM</span></code>.</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>ranks: 1-D array like</dt><dd><p>A range of integers for ad-hoc number of communities. Pass this argument if you are using <code class="docutils literal notranslate"><span class="pre">PARA_FACT</span></code>.</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>degree_correction: list</dt><dd><p>A list of boolean values(either True or False) for degree correction. Pass this argument if you are using <code class="docutils literal notranslate"><span class="pre">DSBM</span></code>.</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>**kwargs</strong> – <dl class="simple">
+<dt>spikes: 2-D array</dt><dd><p>Initial spike train array containing the spikes of size <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">x</span> <span class="pre">t</span></code>. Pass this argument if your <code class="docutils literal notranslate"><span class="pre">update_method</span></code>
+is <code class="docutils literal notranslate"><span class="pre">local</span></code> or <code class="docutils literal notranslate"><span class="pre">global</span></code>.</p>
+</dd>
+</dl>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>membership_partitions</strong> (<em>dict</em>) – Dictionary with keys as first set of parameters lists and second set of parameters list indices indicating the
+community assignment of each node.</p></li>
+<li><p><strong>C</strong> (<em>array</em>) – Matrix of size <code class="docutils literal notranslate"><span class="pre">parameter_space</span> <span class="pre">x(length</span> <span class="pre">x</span> <span class="pre">size)</span></code>. This is the input for <code class="docutils literal notranslate"><span class="pre">community_consensus_iterative</span></code>.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.slices_to_layers">
+<code class="sig-name descname">slices_to_layers</code><span class="sig-paren">(</span><em class="sig-param">G_coupling</em>, <em class="sig-param">interlayer_indices</em>, <em class="sig-param">interlayer_weights</em>, <em class="sig-param">slice_attr='slice'</em>, <em class="sig-param">vertex_id_attr='id'</em>, <em class="sig-param">edge_type_attr='type'</em>, <em class="sig-param">weight_attr='weight'</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.slices_to_layers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Actual function implementing neighborhood coupling with Modularity Maximization. Leiden algorithm’s python package
+inherently only allows diagonal coupling. So, this function is needed for non-diagonal coupling.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.threshold">
+<code class="sig-name descname">threshold</code><span class="sig-paren">(</span><em class="sig-param">array</em>, <em class="sig-param">thresh</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.threshold" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function to threshold the network edges.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>array</strong> (<em>np.array</em>) – Input array corresponding to one layer of the temporal network.</p></li>
+<li><p><strong>thresh</strong> (<em>float</em>) – Threshold to keep the edges stronger than this value where weaker edges are going to be set to 0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>thresholded_array</strong> – <code class="docutils literal notranslate"><span class="pre">n</span> <span class="pre">x</span> <span class="pre">n</span></code> thresholded adjacency matrix.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.time_slices_to_layers">
+<code class="sig-name descname">time_slices_to_layers</code><span class="sig-paren">(</span><em class="sig-param">graphs</em>, <em class="sig-param">interlayer_indices</em>, <em class="sig-param">interlayer_weights</em>, <em class="sig-param">interslice_weight=1</em>, <em class="sig-param">slice_attr='slice'</em>, <em class="sig-param">vertex_id_attr='id'</em>, <em class="sig-param">edge_type_attr='type'</em>, <em class="sig-param">weight_attr='weight'</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.time_slices_to_layers" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function for implementing neighborhood coupling with Modularity Maximization. See <code class="docutils literal notranslate"><span class="pre">slices_to_layers</span></code>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.trajectories">
+<code class="sig-name descname">trajectories</code><span class="sig-paren">(</span><em class="sig-param">thresh=0.9</em>, <em class="sig-param">node_id=None</em>, <em class="sig-param">community=None</em>, <em class="sig-param">edge_color=True</em>, <em class="sig-param">pv=None</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.trajectories" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function graphing the edge trajcetories of the temporal network.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>thresh</strong> (<em>float</em>) – Threshold for keeping filtering the edge weights.</p></li>
+<li><p><strong>node_id</strong> (<em>int</em><em> (</em><em>Default: None</em><em>)</em>) – If None, function is going to graph all of the nodes’s trajectories.</p></li>
+<li><p><strong>community</strong> (<em>array</em><em> (</em><em>Default: None</em><em>)</em>) – First output of <code class="docutils literal notranslate"><span class="pre">self.community</span></code> indicating the community assignment of the nodes if exists.</p></li>
+<li><p><strong>edge_color</strong> (<em>bool</em>) – Different colors on each layer if True, black otherwise.</p></li>
+<li><p><strong>pv</strong> (<em>list</em>) – Pass a list of pv cell indices or None –dashes the pv cells.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="Temporal_Community_Detection.temporal_network.update_interlayer">
+<code class="sig-name descname">update_interlayer</code><span class="sig-paren">(</span><em class="sig-param">spikes</em>, <em class="sig-param">X</em>, <em class="sig-param">omega_global</em>, <em class="sig-param">percentage</em>, <em class="sig-param">method</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.update_interlayer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function for local and global updates. This function assumes diagonal coupling and evaluates the interlink weights
+according to the <code class="docutils literal notranslate"><span class="pre">local</span></code> or <code class="docutils literal notranslate"><span class="pre">global</span></code> change in some nodal property, spike rates in our case.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>spikes</strong> (<em>array</em>) – Initial spike train array.</p></li>
+<li><p><strong>X</strong> (<em>float</em>) – Value for determining if the nodal property between consecutive layers(local), or compared to global average, is
+less than <code class="docutils literal notranslate"><span class="pre">X</span></code> standard deviation.</p></li>
+<li><p><strong>omega_global</strong> (<em>float</em>) – Initial interlayer value for all diagonal links.</p></li>
+<li><p><strong>percentage</strong> (<em>float</em>) – If the nodal property is less than <code class="docutils literal notranslate"><span class="pre">X</span></code> standard deviation, for a given node, interlayer edge weight is adjusted
+so that new weight is equal to <code class="docutils literal notranslate"><span class="pre">omega_global</span> <span class="pre">x</span> <span class="pre">percentage</span></code>.</p></li>
+<li><p><strong>method</strong> (<em>'local'</em><em> or </em><em>'global'</em>) – Method for updating the interlayer edges. If local a comparison between consecutive layers is made and if global,
+overall average of the spike rates are hold as a basis.</p></li>
+<li><p><strong>Returns</strong> – </p></li>
+<li><p><strong>------------</strong> – </p></li>
+<li><p><strong>interlayers</strong> (<em>list</em>) – A list of length <code class="docutils literal notranslate"><span class="pre">(length-1)</span> <span class="pre">x</span> <span class="pre">size</span></code> indicating interlayer edge weights of every node.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2021, Bengier Ülgen Kılıç.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.0.1',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+      <script type="text/javascript" src="_static/language_data.js"></script>
+      <script type="text/javascript" src="_static/jquery.fancybox.min.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+  
+  <script type="text/javascript">
+    $(function(){
+      $('.image-reference').fancybox();
+    })
+  </script>
+
+</body>
+</html>

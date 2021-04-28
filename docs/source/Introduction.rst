@@ -1,4 +1,4 @@
-Quick Tutorial
+Introduction
 ===============
 
 Installation/Usage

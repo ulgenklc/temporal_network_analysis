@@ -1,5 +1,5 @@
-Quick Tutorial
-===============
+Dynamic Community Detection(DCD)
+=================================
 
 Installation/Usage
 *********************

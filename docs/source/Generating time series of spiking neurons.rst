@@ -1,5 +1,5 @@
-Quick Tutorial
-===============
+Generating time series of spiking neurons
+============================================
 
 Installation/Usage
 *********************

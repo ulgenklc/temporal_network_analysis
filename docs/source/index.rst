@@ -5,7 +5,7 @@
 
 Welcome to Community Characterization in Temporal Networks's documentation!
 ===========================================================================
-Community Characterization in Temporal Networks is our python wrap-up for applying dynamic community detectyion on temporal networks obtained from spike-train data. We generate spiking neuronal activity with varying community events and compare the performances of 5 different community detection algorithms: MMM, Infomap, Tensor Factorization, DSBM and DPPM where DPPM is available in MATLAB.
+Community Characterization in Temporal Networks is our python wrap-up for applying dynamic community detection on temporal networks obtained from spike-train data. We generate spiking neuronal activity with varying community events and compare the performances of 5 different community detection algorithms: MMM, Infomap, Tensor Factorization, DSBM and DPPM where DPPM is not included in this package since it is available in MATLAB.
 
 .. toctree::
    :maxdepth: 2
@@ -15,7 +15,7 @@ Community Characterization in Temporal Networks is our python wrap-up for applyi
    Generating time series of spiking neurons
    Dynamic Community Detection(DCD)
    Quality of Partitions
-   Temporal_Network
+   Temporal_Network 
 
 Indices and tables
 ==================

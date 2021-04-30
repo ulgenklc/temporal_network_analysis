@@ -5,3 +5,6 @@ The ``temporal_network`` class
     :members:
     :undoc-members:
     :show-inheritance:
+    
+.. automodule:: helpers
+    :members:

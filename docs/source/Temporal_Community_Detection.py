@@ -198,7 +198,7 @@ class temporal_network:
             
     def aggragate(self, normalized = True):
         """
-        Helper function to aggragate layers of the temporal network.
+        Helper method to aggragate layers of the temporal network.
         
         Parameters
         --------------
@@ -222,7 +222,7 @@ class temporal_network:
     
     def binarize(self, array, thresh = None):
         """
-        Helper function to binarize the network edges.
+        Helper method to binarize the network edges.
         
         Parameters
         ------------
@@ -287,7 +287,7 @@ class temporal_network:
         **kwargs:
             sigma: size of the gaussian (See gaussian_filter).
         
-        Return
+        Returns
         ------------
         A: np.array
             Matrix of size ``l x n x windowsize`` where l is the number of layers ``(= t/self.windowsize)``, n is the number of neurons.
@@ -342,7 +342,7 @@ class temporal_network:
         layer: int
             Layer ID of the node that it belongs to.
             
-        Return
+        Returns
         -----------
         neighbors: list
             list of node IDs of the neighbors of ``node_id`` in layer ``layer``.
@@ -466,6 +466,11 @@ class temporal_network:
     def create_igraph(self):
         """
         Helper function that creates igraphs for modularity maximization.
+        
+        Returns
+        ---------
+        G: list
+            List of ``igraph`` objects.
         """
         T = self.length
         N = self.size
@@ -542,6 +547,10 @@ class temporal_network:
             spikes: array
                 if ``local`` or ``global`` update method is being used, initial ``spikes`` that is used to obtain the correlation
                 matrices needs to be provided.
+        Returns
+        ---------
+        im: Infomap object
+            See https://mapequation.github.io/infomap/python/
         '''
         im = Infomap("--two-level --directed --silent")
             ######### Make Network
@@ -595,6 +604,17 @@ class temporal_network:
         """
         Returns the community assignments from the Leiden algorithm as tuple (n,t) where ``n`` is the node id ``t`` is the layer 
         that node belongs to.
+        
+        Parameters
+        ------------
+        interslice_partition: leidenalg object
+            First or second output of ``leiden``.
+        Returns
+        -----------
+        membership:list ([list1,list2,...])
+            List of lists of length ``number of communities`` where each list contains the community assignments of the given community.
+        number_of_communites:int
+            Length of ``membership``.
         """
         n = self.size
         membership = [[] for i in range(interslice_partition._len)]
@@ -832,7 +852,7 @@ class temporal_network:
         thresh: float
             Value for thresholding the weakest ``thresh`` percentage of interlinks that this node has.
             
-        Return:
+        Returns
         ---------
         w: float
             Neighborhood coupling weight.
@@ -866,7 +886,7 @@ class temporal_network:
             Method for updating the interlayer edges. If local a comparison between consecutive layers is made and if global,
             overall average of the spike rates are hold as a basis.
             
-        Returns:
+        Returns
         ------------
         interlayers: list
             A list of length ``(length-1) x size`` indicating interlayer edge weights of every node.
@@ -1010,7 +1030,7 @@ class temporal_network:
         threshs: 1-D array
             Set of threshold values.
         
-        Returns:
+        Returns
         -----------
         processed_matrices: dict
             Dictionary of edge list values corresponding to each given threshold value.
@@ -1104,7 +1124,7 @@ class temporal_network:
         Parameters
         ---------------
         C: array
-            Matrix of size ``parameter_space x (length x size)`` where each row is the community assignment of the corresponding
+            Matrix of size ``parameter_space x (length * size)`` where each row is the community assignment of the corresponding
             parameters.
             
         Returns
@@ -1212,7 +1232,7 @@ class temporal_network:
             Dictionary with keys as first set of parameters lists and second set of parameters list indices indicating the 
             community assignment of each node.
         C: array
-            Matrix of size ``parameter_space x(length x size)``. This is the input for ``community_consensus_iterative``.
+            Matrix of size ``parameter_space x (length * size)``. This is the input for ``community_consensus_iterative``.
         
         '''
         

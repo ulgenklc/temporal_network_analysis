@@ -41,7 +41,7 @@
               href="genindex.html"/>
         <link rel="search" title="Search" href="search.html"/>
     <link rel="top" title="Community Characterization in Temporal Networks 0.0.1 documentation" href="index.html"/>
-        <link rel="prev" title="Quick Tutorial" href="Quality of Partitions.html"/> 
+        <link rel="prev" title="Quality of Partitions" href="Quality of Partitions.html"/> 
 
   
   <script src="_static/js/modernizr.min.js"></script>
@@ -91,10 +91,10 @@
             
               <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="Introduction.html">Quick Tutorial</a></li>
-<li class="toctree-l1"><a class="reference internal" href="Generating time series of spiking neurons.html">Quick Tutorial</a></li>
-<li class="toctree-l1"><a class="reference internal" href="Dynamic Community Detection(DCD).html">Quick Tutorial</a></li>
-<li class="toctree-l1"><a class="reference internal" href="Quality of Partitions.html">Quick Tutorial</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Generating time series of spiking neurons.html">Generating time series of spiking neurons</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Dynamic Community Detection(DCD).html">Dynamic Community Detection(DCD)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Quality of Partitions.html">Quality of Partitions</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">The <code class="docutils literal notranslate"><span class="pre">temporal_network</span></code> class</a></li>
 </ul>
 
@@ -157,7 +157,7 @@
   <div class="rst-breadcrumbs-buttons" role="navigation" aria-label="breadcrumb navigation">
       
       
-        <a href="Quality of Partitions.html" class="btn btn-neutral" title="Quick Tutorial" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="Quality of Partitions.html" class="btn btn-neutral" title="Quality of Partitions" accesskey="p"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
   </div>
   
@@ -312,7 +312,7 @@ data is <code class="docutils literal notranslate"><span class="pre">list__adjac
 <dl class="method">
 <dt id="Temporal_Community_Detection.temporal_network.aggragate">
 <code class="sig-name descname">aggragate</code><span class="sig-paren">(</span><em class="sig-param">normalized=True</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.aggragate" title="Permalink to this definition">¶</a></dt>
-<dd><p>Helper function to aggragate layers of the temporal network.</p>
+<dd><p>Helper method to aggragate layers of the temporal network.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>normalized</strong> (<em>Bool</em>) – divides the total edge weight of each edge by the number of layers(<code class="docutils literal notranslate"><span class="pre">self.length</span></code>).</p>
@@ -350,7 +350,7 @@ data is <code class="docutils literal notranslate"><span class="pre">list__adjac
 <dl class="method">
 <dt id="Temporal_Community_Detection.temporal_network.binarize">
 <code class="sig-name descname">binarize</code><span class="sig-paren">(</span><em class="sig-param">array</em>, <em class="sig-param">thresh=None</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.binarize" title="Permalink to this definition">¶</a></dt>
-<dd><p>Helper function to binarize the network edges.</p>
+<dd><p>Helper method to binarize the network edges.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -399,7 +399,7 @@ Mason A. Porter, Nicholas F. Wymbs, Scott T. Grafton, Jean M. Carlson et al.</p>
 <p>We apply Leiden algorithm to maximize modularity.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>C</strong> (<em>array</em>) – Matrix of size <code class="docutils literal notranslate"><span class="pre">parameter_space</span> <span class="pre">x</span> <span class="pre">(length</span> <span class="pre">x</span> <span class="pre">size)</span></code> where each row is the community assignment of the corresponding
+<dd class="field-odd"><p><strong>C</strong> (<em>array</em>) – Matrix of size <code class="docutils literal notranslate"><span class="pre">parameter_space</span> <span class="pre">x</span> <span class="pre">(length</span> <span class="pre">*</span> <span class="pre">size)</span></code> where each row is the community assignment of the corresponding
 parameters.</p>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -415,6 +415,14 @@ parameters.</p>
 <dt id="Temporal_Community_Detection.temporal_network.create_igraph">
 <code class="sig-name descname">create_igraph</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.create_igraph" title="Permalink to this definition">¶</a></dt>
 <dd><p>Helper function that creates igraphs for modularity maximization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>G</strong> – List of <code class="docutils literal notranslate"><span class="pre">igraph</span></code> objects.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>list</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">
@@ -511,6 +519,12 @@ matrices needs to be provided.</p>
 </p></li>
 </ul>
 </dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>im</strong> – See <a class="reference external" href="https://mapequation.github.io/infomap/python/">https://mapequation.github.io/infomap/python/</a></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Infomap object</p>
+</dd>
 </dl>
 </dd></dl>
 
@@ -575,6 +589,18 @@ Go with None unless you know what you are doing.</p></li>
 <code class="sig-name descname">membership</code><span class="sig-paren">(</span><em class="sig-param">interslice_partition</em><span class="sig-paren">)</span><a class="headerlink" href="#Temporal_Community_Detection.temporal_network.membership" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns the community assignments from the Leiden algorithm as tuple (n,t) where <code class="docutils literal notranslate"><span class="pre">n</span></code> is the node id <code class="docutils literal notranslate"><span class="pre">t</span></code> is the layer
 that node belongs to.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>interslice_partition</strong> (<em>leidenalg object</em>) – First or second output of <code class="docutils literal notranslate"><span class="pre">leiden</span></code>.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>membership</strong> (<em>list ([list1,list2,…])</em>) – List of lists of length <code class="docutils literal notranslate"><span class="pre">number</span> <span class="pre">of</span> <span class="pre">communities</span></code> where each list contains the community assignments of the given community.</p></li>
+<li><p><strong>number_of_communites</strong> (<em>int</em>) – Length of <code class="docutils literal notranslate"><span class="pre">membership</span></code>.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="method">
@@ -591,11 +617,14 @@ purposes. In this sense, we are coupling a maximal neighborhood around a node wi
 <li><p><strong>interlayer_indices</strong> (<em>dict</em>) – First output of the <code class="docutils literal notranslate"><span class="pre">get_normalized_outlinks</span></code>.</p></li>
 <li><p><strong>interlayer_weights</strong> (<em>dict</em>) – Second output of the <code class="docutils literal notranslate"><span class="pre">get_normalized_outlinks</span></code>.</p></li>
 <li><p><strong>thresh</strong> (<em>float</em>) – Value for thresholding the weakest <code class="docutils literal notranslate"><span class="pre">thresh</span></code> percentage of interlinks that this node has.</p></li>
-<li><p><strong>Return</strong> – </p></li>
-<li><p><strong>---------</strong> – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
 <li><p><strong>w</strong> (<em>float</em>) – Neighborhood coupling weight.</p></li>
 <li><p><strong>nbr</strong> (<em>dict</em>) – Thresholded list of maximal interlinks</p></li>
 </ul>
+</p>
 </dd>
 </dl>
 </dd></dl>
@@ -626,12 +655,13 @@ purposes. In this sense, we are coupling a maximal neighborhood around a node wi
 <dd><p>Helper function preparing adjacency matrices into the pipeline for DSBM converting the matrix into an edge_list.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>threshs</strong> (<em>1-D array</em>) – Set of threshold values.</p></li>
-<li><p><strong>Returns</strong> – </p></li>
-<li><p><strong>-----------</strong> – </p></li>
-<li><p><strong>processed_matrices</strong> (<em>dict</em>) – Dictionary of edge list values corresponding to each given threshold value.</p></li>
-</ul>
+<dd class="field-odd"><p><strong>threshs</strong> (<em>1-D array</em>) – Set of threshold values.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>processed_matrices</strong> – Dictionary of edge list values corresponding to each given threshold value.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dict</p>
 </dd>
 </dl>
 </dd></dl>
@@ -751,7 +781,7 @@ is <code class="docutils literal notranslate"><span class="pre">local</span></co
 <dd class="field-even"><p><ul class="simple">
 <li><p><strong>membership_partitions</strong> (<em>dict</em>) – Dictionary with keys as first set of parameters lists and second set of parameters list indices indicating the
 community assignment of each node.</p></li>
-<li><p><strong>C</strong> (<em>array</em>) – Matrix of size <code class="docutils literal notranslate"><span class="pre">parameter_space</span> <span class="pre">x(length</span> <span class="pre">x</span> <span class="pre">size)</span></code>. This is the input for <code class="docutils literal notranslate"><span class="pre">community_consensus_iterative</span></code>.</p></li>
+<li><p><strong>C</strong> (<em>array</em>) – Matrix of size <code class="docutils literal notranslate"><span class="pre">parameter_space</span> <span class="pre">x</span> <span class="pre">(length</span> <span class="pre">*</span> <span class="pre">size)</span></code>. This is the input for <code class="docutils literal notranslate"><span class="pre">community_consensus_iterative</span></code>.</p></li>
 </ul>
 </p>
 </dd>
@@ -824,10 +854,13 @@ less than <code class="docutils literal notranslate"><span class="pre">X</span><
 so that new weight is equal to <code class="docutils literal notranslate"><span class="pre">omega_global</span> <span class="pre">x</span> <span class="pre">percentage</span></code>.</p></li>
 <li><p><strong>method</strong> (<em>'local'</em><em> or </em><em>'global'</em>) – Method for updating the interlayer edges. If local a comparison between consecutive layers is made and if global,
 overall average of the spike rates are hold as a basis.</p></li>
-<li><p><strong>Returns</strong> – </p></li>
-<li><p><strong>------------</strong> – </p></li>
-<li><p><strong>interlayers</strong> (<em>list</em>) – A list of length <code class="docutils literal notranslate"><span class="pre">(length-1)</span> <span class="pre">x</span> <span class="pre">size</span></code> indicating interlayer edge weights of every node.</p></li>
 </ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><strong>interlayers</strong> – A list of length <code class="docutils literal notranslate"><span class="pre">(length-1)</span> <span class="pre">x</span> <span class="pre">size</span></code> indicating interlayer edge weights of every node.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list</p>
 </dd>
 </dl>
 </dd></dl>
@@ -847,7 +880,7 @@ overall average of the spike rates are hold as a basis.</p></li>
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
       
-        <a href="Quality of Partitions.html" class="btn btn-neutral" title="Quick Tutorial" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="Quality of Partitions.html" class="btn btn-neutral" title="Quality of Partitions" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

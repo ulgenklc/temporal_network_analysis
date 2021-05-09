@@ -511,7 +511,7 @@ class temporal_network:
                 indices, norm_weights
                 interlayer_indices['%d,%d'%(i,j)] = indices
                 interlayer_weights['%d,%d'%(i,j)] = norm_weights
-        return(interlayer_indices,interlayer_weights)
+        return(interlayer_indices, interlayer_weights)
     
     def neighborhood_flow(self, layer, node, interlayer_indices, interlayer_weights, thresh):
         length = int(min(len(interlayer_weights['%d,%d'%(layer,node)]),len(interlayer_weights['%d,%d'%(layer+1,node)]))*thresh)

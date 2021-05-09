@@ -18,6 +18,12 @@ import neo as n
 import quantities as pq
 from quantities import Hz, s, ms
 
+import pickle
+import csv
+from read_roi import read_roi_file, read_roi_zip
+from glob import glob
+import os
+
 from sklearn.metrics import normalized_mutual_info_score, adjusted_rand_score, f1_score
 
 import leidenalg as la
@@ -634,6 +640,30 @@ def consensus_display(partition, n, t):
     cmap = mpl.colors.ListedColormap(color)
     
     return(comms, cmap, color)
+
+def read_csv(path, output, subject, roi):
+    spike = open( path + output + subject + "_spikes_complexity.csv", "r")
+    reader_spike = csv.reader(spike)
+    n = read_roi(path, roi, subject)
+    spikes = np.zeros((n,8000)) # roi x time
+
+    for i,line in enumerate(reader_spike):
+        for j in range(len(line)):
+            spikes[i][j]=line[j]
+            
+    return(spikes)
+
+def load_obj(path, name):
+    with open(path + name + '.pkl', 'rb') as f:
+        return pickle.load(f)
+            
+def read_roi(path, roi, subject_roi):
+    roi = read_roi_zip(glob(path+roi+subject_roi +'.zip')[0])
+    n = len(roi)
+    for i, R in enumerate(roi):
+        x = roi[R]['x']
+        y = roi[R]['y']
+    return(n)
 
 
 # In[ ]:

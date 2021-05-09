@@ -963,7 +963,7 @@ class temporal_network:
             X = tl.tensor(tensor)
     
         elif update_method == None:
-            tensor = np.zeros((self.size, self.size, int((2*self.length)-1)))
+            tensor = np.zeros((self.size, self.size, self.length))
             for i in range(self.length):
                 tensor[:,:,i] = self.threshold(self.list_adjacency[i], threshold)
             X = tl.tensor(tensor)
@@ -1262,9 +1262,10 @@ class temporal_network:
                 membership_partitions['interlayer=%.3f'%e] = membership_labels
             
         elif method == 'infomap':
-            grid = len(kwargs['interlayers'])
+            grid1 = len(kwargs['interlayers'])
+            grid2 = len(kwargs['thresholds'])
             membership_partitions = {}
-            C = np.zeros((grid*grid, self.size*self.length))
+            C = np.zeros((grid1*grid2, self.size*self.length))
             dtype = [('layer',int),('nodeid',int),('module', int)]
 
             for i, interlayer in enumerate(kwargs['interlayers']):
@@ -1283,14 +1284,15 @@ class temporal_network:
                         ordered_set.append((node.layer_id, node.node_id, node.module_id))
                     ordered_nodes = np.array(ordered_set , dtype = dtype)
                     
-                    C[i*grid+j,:] = [node[2] for node in np.sort(ordered_nodes, order = ['layer', 'nodeid'])]
+                    C[i*grid2+j,:] = [node[2] for node in np.sort(ordered_nodes, order = ['layer', 'nodeid'])]
         
                 membership_partitions['interlayer=%.3f'%interlayer] = inter_membership
         
         elif method == 'PARA_FACT':
-            grid = len(kwargs['ranks'])
+            grid1 = len(kwargs['ranks'])
+            grid2 = len(kwargs['thresholds'])
             membership_partitions = {}
-            C = np.zeros((grid*grid, self.size*self.length))
+            C = np.zeros((grid1*grid2, self.size*self.length))
             
             for i, r in enumerate(kwargs['ranks']):
                 inter_membership = []
@@ -1298,21 +1300,22 @@ class temporal_network:
                     weights, factors = self.make_tensor(r, thresh, update_method, **kwargs)
                     membership, comm  = self.process_tensor(factors, r)
                     inter_membership.append(membership)
-                    C[i*grid+j,:] = comm
+                    C[i*grid2+j,:] = comm
                 membership_partitions['rank=%d'%r] = inter_membership
                 
         elif method == 'DSBM':
             
-            grid = len(kwargs['degree_correction'])
+            grid1 = len(kwargs['degree_correction'])
+            grid2 = len(kwargs['thresholds'])
             membership_partitions = {}
-            C = np.zeros((grid*grid, self.size*self.length))
+            C = np.zeros((grid1*grid2, self.size*self.length))
             edge_list = self.process_matrices(kwargs['thresholds'])
             for i, deg in enumerate(kwargs['degree_correction']):
                 inter_membership = []
                 for j, thresh in enumerate(kwargs['thresholds']):
                     membership, comm  = self.dsbm_via_graphtool(edge_list['%.2f'%thresh], deg)
                     inter_membership.append(membership)
-                    C[i*grid+j,:] = comm
+                    C[i*grid2+j,:] = comm
                 membership_partitions['degree_correction=%s'%deg] = inter_membership
         
         if consensus: 

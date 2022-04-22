@@ -202,6 +202,26 @@ def generate_ground_truth(comm_sizes, method = 'scattered', pad = False, communi
             if pad:
                 truth_labels = truth_labels + [0 for i in range(sum(comm_sizes[:layers]))]
                 truth_labels = truth_labels + [0 for i in range(sum(comm_sizes[:layers]))]
+        return(truth_labels)
+                
+    elif community_operation == 'simple_grow':
+        layers = len(comm_sizes)
+        truth_labels = []
+        for l in range(layers):
+            for i,c in enumerate(comm_sizes):
+                if l == 0:
+                    label = i
+                elif l<i:
+                    label = i
+                else:
+                    label = 0
+                truth_labels = truth_labels + [label for j in range(c)]
+            
+        if pad:
+            l1 = truth_labels[:sum(comm_sizes)]
+            l2 = [0 for i in range(sum(comm_sizes))]
+            truth_labels = l1 + truth_labels +l2
+        return(truth_labels)
     
     elif community_operation == 'contract':
         layers = len(comm_sizes)
@@ -226,6 +246,8 @@ def generate_ground_truth(comm_sizes, method = 'scattered', pad = False, communi
             truth_labels_end = truth_labels[sum(comm_sizes)*(layers-1):]
             if pad:
                 truth_labels = truth_labels_tip + truth_labels +truth_labels_end
+                
+        return(truth_labels)
             
                 
     elif community_operation == 'merge': ##only for two layers
@@ -242,6 +264,8 @@ def generate_ground_truth(comm_sizes, method = 'scattered', pad = False, communi
             l1 = truth_labels[:sum(comm_sizes[0])]
             l2 = truth_labels[sum(comm_sizes[0]):]
             truth_labels = l1 + truth_labels +l2
+            
+        return(truth_labels)
      
     elif community_operation == 'transient':
         truth_labels = []
@@ -261,7 +285,7 @@ def generate_ground_truth(comm_sizes, method = 'scattered', pad = False, communi
             for c in current:
                 for p in prev:
                     O = getOverlap(p,c)
-                    if O/(c[1]-c[0]) >= 1/2:
+                    if O/abs(c[1]-c[0]) >= 1/2 or O/abs(p[1]-p[0])>= 1/2:
                         truth_labels[l*num_neurons+c[0]:l*num_neurons+c[1]] = [truth_labels[(l-1)*num_neurons+p[0]]]*(c[1]-c[0])
             
             for i in range(num_neurons):
@@ -282,8 +306,20 @@ def generate_ground_truth(comm_sizes, method = 'scattered', pad = False, communi
             l1 = truth_labels[:sum(comm_sizes[0])]
             l2 = truth_labels[sum(comm_sizes[0])*(layers-1):]
             truth_labels = l1 + truth_labels +l2
-            
-    return(truth_labels)
+        
+        if method == 'scattered':
+            return(truth_labels)
+        elif method == 'integrated':
+            new_truth_labels = []
+            if pad:
+                layers = layers + 2
+            for i in range(layers):
+                for j,e in enumerate(truth_labels[i*num_neurons:(i+1)*num_neurons]):
+                    if truth_labels[i*num_neurons:(i+1)*num_neurons].count(e) == 1:
+                        new_truth_labels.append(0)
+                    else:
+                        new_truth_labels.append(e)
+            return(new_truth_labels)
 
 def information_recovery(pred_labels, comm_size, truth, interlayers, other_parameter, com_op):
     NMI1 = np.zeros((len(interlayers), len(other_parameter)))
@@ -415,8 +451,11 @@ def display_truth(comm_sizes, community_operation, ax = None):
         ax[1].set_ylabel('Neuron ID', fontsize = 18)
         ax[1].set_title('Scattered Ground Truth with %d Communities' %len(color), fontsize = 20)
     
-    elif community_operation == 'merge' or community_operation == 'transient':
-        n = sum(comm_sizes[0])
+    elif community_operation == 'merge' or community_operation == 'transient' or community_operation == 'simple_grow':
+        try:
+            n = sum(comm_sizes[0])
+        except: n = sum(comm_sizes)
+        
         layers = len(comm_sizes)
         l = layers + 2
         
@@ -531,7 +570,7 @@ def create_time_series(operation, community_sizes, spiking_rates, spy = True, wi
         if operation =='contract':
             spikes = np.flip(spikes,1)
         
-    if operation == 'merge' or operation == 'transient':
+    elif operation == 'merge' or operation == 'transient':
         num_neurons = int(sum(community_sizes[0]))
         
         spikes = np.zeros((num_neurons,total_duration))
@@ -553,6 +592,42 @@ def create_time_series(operation, community_sizes, spiking_rates, spy = True, wi
                         master_spikes[:,int(s*binsize):int((s+1)*binsize)], k)
                 neuron_count = neuron_count + e
         
+    elif operation == 'simple_grow':
+        num_neurons = int(sum(community_sizes))
+        
+        spikes = np.zeros((num_neurons,total_duration))
+        comms = [[] for i in range(layers)]
+        rates = [[] for i in range(layers)]
+        for i,c in enumerate(community_sizes):
+            for l in range(layers-i):
+                if l == 0:
+                    size = c
+                    rate = spiking_rates[i]
+                elif i == 0:
+                    size = sum(community_sizes[:(l+1)])
+                    rate = spiking_rates[0]
+                else:
+                    size = community_sizes[i+l]
+                    rate = spiking_rates[i+l]
+                comms[l].append(size)
+                rates[l].append(rate)
+        
+        for s in range(layers):
+            neuron_count = 0
+            for i,e in enumerate(comms[s]):
+                initial_master = homogeneous_poisson_process(rate = rates[s][i]*Hz,
+                                                             t_start = s*(binsize)*ms, 
+                                                             t_stop = (s+1)*binsize*ms, 
+                                                             as_array = True)
+                master_spikes = np.zeros((1,total_duration))
+    
+                for j,f in enumerate(initial_master):
+                    master_spikes[0][int(f)] = 1
+
+                for j in range(e):
+                    spikes[neuron_count+j][int(s*binsize):int((s+1)*binsize)] = jitter(
+                        master_spikes[:,int(s*binsize):int((s+1)*binsize)], k)
+                neuron_count = neuron_count + e
             
     if spy:
         fig,ax = plt.subplots(1,1,figsize=(20,10))

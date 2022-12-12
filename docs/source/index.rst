@@ -14,7 +14,6 @@ Community Characterization in Temporal Networks is our python wrap-up for applyi
    Introduction
    Generating time series of spiking neurons
    Dynamic Community Detection(DCD)
-   Quality of Partitions
    Temporal_Network
 
 Indices and tables

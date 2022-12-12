@@ -467,9 +467,9 @@ def information_recovery(pred_labels, comm_size, truth, interlayers, other_param
     
     for i in range(len(interlayers)):
         for j in range(len(other_parameter)):
-            NMI1[i][j] = normalized_mutual_info_score(true_labels, list(pred_labels[i*len(other_parameter)+j].astype(int)), average_method = 'max')
-            ARI1[i][j] = adjusted_rand_score(true_labels, list(pred_labels[i*len(other_parameter)+j].astype(int)))
-            F1S1[i][j] = f1_score(true_labels, list(pred_labels[i*len(other_parameter)+j].astype(int)), average = 'weighted')
+            NMI1[i][j] = normalized_mutual_info_score(true_labels, list(pred_labels[i*len(other_parameter)+j]), average_method = 'max')
+            ARI1[i][j] = adjusted_rand_score(true_labels, list(pred_labels[i*len(other_parameter)+j]))
+            F1S1[i][j] = f1_score(true_labels, list(pred_labels[i*len(other_parameter)+j]), average = 'weighted')
         
     fig,ax = plt.subplots(1,3, figsize = (85, 50))
     normalize = Normalize(vmin=0, vmax=1)

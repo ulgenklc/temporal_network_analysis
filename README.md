@@ -1,4 +1,4 @@
-# temporal_network_analysis
+# Temporal Networks
 Temporal network is a python package for multilayer network analysis of time series data via dynamic community detection (DCD).
 
 We present our skeleton coupling algorithm within the package accompanied by the paper.

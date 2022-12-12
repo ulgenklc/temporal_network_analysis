@@ -18,4 +18,4 @@ Tensor factorization as explained in
 Gauvin L, Panisson A, Cattuto C. Detecting the community structure and activity patterns of temporal networks: a non-negative tensor factorization approach. PLoS One. 2014;9(1):e86028. Published 2014 Jan 31. doi:10.1371/journal.pone.0086028
 
 
-More documentation is coming soon.
+Documenation is available https://temporal-network-analysis.readthedocs.io/en/latest/index.html

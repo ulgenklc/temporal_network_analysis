@@ -1,6 +1,6 @@
 Generating time series of spiking neurons
 ============================================
-One can use the below framework to create time series of spiking neurons which are `synchronized' in various assymblies. This behavior is exhibited as planted community structure. Note that this package allows simulation of different community events which can be found in ``Temporal Network``
+One can use the below framework to create time series of spiking neurons which are synchronized in various assymblies. This behavior is exhibited as planted community structure. Note that this package allows simulation of different community events which can be found in ``Temporal Network``.
 
 Planting dynamic communities into synthetic time series data
 *************************************************************

@@ -16,7 +16,6 @@ Community Characterization in Temporal Networks is our python wrap-up for applyi
    Dynamic Community Detection(DCD)
    Quality of Partitions
    Temporal_Network
-   helpers
 
 Indices and tables
 ==================

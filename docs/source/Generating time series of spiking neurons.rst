@@ -60,6 +60,7 @@ We bin the spikes into time-windows and compute positive maximum cross-correlati
    :height: 200px
    :scale: 400 %
    :align: center
+   
    Resulting adjacency matrices for each snapshot. 
    
    

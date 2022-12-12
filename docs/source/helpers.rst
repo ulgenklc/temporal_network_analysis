@@ -1,7 +1,7 @@
-The ``temporal_network`` class
+The ``helpers`` module
 ***************************************
 
-.. autoclass:: Temporal_Community_Detection.temporal_network
+.. automodule:: helpers
     :members:
     :undoc-members:
     :show-inheritance:

@@ -13,10 +13,11 @@ Once we have a set of n by n adjacency matrices for a temporal network with T ma
 Skeleton coupling
 *************************
     
-The API is desogned to perform a GridSearch on the parameter spaces of algorithms. For example, if one is utilizing skeleton coupling Multilayer Modularity Maximization, then you can provide a range of values for resolutions parameter and interlayer edge weights. Note that by default, interlayer coupling will be uniform diagonal.
+The API is designed to perform a GridSearch on the parameter spaces of algorithms. For example, if one is utilizing skeleton coupling Multilayer Modularity Maximization, then you can provide a range of values for resolutions parameter and interlayer edge weights. Note that by default, interlayer coupling will be uniform diagonal.
 
     
 .. code-block:: python
+
     interlayer_edge_weights = np.linspace(0, 1, 6)
     resolutions_parameters = np.linspace(0.9, 1.1, 6)
     
@@ -29,6 +30,7 @@ The API is desogned to perform a GridSearch on the parameter spaces of algorithm
 Alternatively, if one wants to use skeleton coupling with Infomap, below is an example code. Note that, if one wants to test a single parameter, they need to pass an array-like for the GridSearch to run properly.
                                            
 .. code-block:: python
+
     interlayer_edge_weights = [0.2]
     edge_thresholds = [0.5]
     
@@ -44,9 +46,10 @@ Alternatively, if one wants to use skeleton coupling with Infomap, below is an e
                                            thresholds = edge_thresholds, #gridsearch parameters2
                                            spikes = spikes) # Spike train
                                            
-In general, below code returns a dictionary whose values are accessed by ``'%d,%d'%(t,node)`` where :math:`0<=t<=T_max-1` is the layer id in which a ``node`` is belong to and :math:`node` is the node id. Each value is a list of nodes (or an empty list) indicating the skeleton coupling assignment of the ``node`` in snaphot ``t``.
+In general, below code returns a dictionary whose values are accessed by ``'%d,%d'%(t,node)`` where :math:`0<=t<=T_{max}-1` is the layer id in which a ``node`` is belong to and :math:`node` is the node id. Each value is a list of nodes (or an empty list) indicating the skeleton coupling assignment of the ``node`` in snaphot ``t``.
 
 .. code-block:: python
+
     membership_static = TN.infomap_static(adjacency_matrices)
     bridge_links = TN.find_skeleton(membership_static)
     

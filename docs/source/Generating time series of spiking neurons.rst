@@ -1,6 +1,6 @@
 Generating time series of spiking neurons
 ============================================
-One can use the below framework to create time series of spiking neurons which are synchronized in various assymblies. This behavior is exhibited as planted community structure. Note that this package allows simulation of different community events which can be found in ``Temporal Network``.
+One can use the below framework to create time series of spiking neurons which are synchronized in various assymblies. This behavior is exhibited as planted community structure. Note that this package allows simulation of different community events which can be found in The ``Temporal Network`` class.
 
 Planting dynamic communities into synthetic time series data
 *************************************************************
@@ -48,12 +48,12 @@ We then create associated time series by planting in dynamic communities determi
 We bin the spikes into time-windows and compute positive maximum cross-correlation. We choose our bin size equal to window size to capture community events properly. We also multiply the spike trains with a gaussian kernel to maximize the correlation.
 
 .. code-block:: python
-    adjacency_matrices = {}
+    adjacency_matrices = []
     standard_dev = 1.2 # for gaussian kernel
     binned_spikes = bin_time_series(spikes, window_size, gaussian = True, sigma = standard_dev)
     
     for i in range(layers):
-        adjacency_matrices['t%d'%i] = cross_correlation_matrix(binned_spikes_G_ESCR[i-1])[0]
+        adjacency_matrices.append(cross_correlation_matrix(binned_spikes_G_ESCR[i-1])[0])
 
 .. figure:: adjacencies_G_ESCR.jpg
    :width: 200px

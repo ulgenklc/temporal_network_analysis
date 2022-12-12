@@ -1,15 +1,56 @@
 Dynamic Community Detection(DCD)
 =================================
 
-Installation/Usage
-*********************
-As the package has not been published on PyPi yet, it CANNOT be install using pip.
+Once we have a set of n by n adjacency matrices for a temporal network with T many snapshots, we can create a ``temporal_network`` object. One can input either a list of adjacency matrices, an edge list or, a supra-adjacency matrix in order to construct the temporal network.
 
-For now, the suggested method is to put the file `Temporal_Community_Detection.py` in the same directory as your source files and call ``from Temporal_Community_Detection import temporal_network``
-
-Initiate a ``temporal_network`` object
-*********************************************
-Temporal networks are a subclass of multilayer/multiplex networks encoding the dynamical systems change over time as a set of networks. 
-Our main object is a ``temporal_network`` and it accepts multiple type of data. One can provide the temporal connectivity as a list of adjacency matrices, a tensor or a dictionary of edge list. See API for more information.
+.. code-block:: python
+    size = n
+    length = T
+    #omega = interlayer edge weights
+    #kind = interlayer coupling
+    TN = temporal_network(size, length, window_size, data = 'list__adjacency', list_adjacency = adjacency_matrices, omega = 1, kind = 'ordinal')
+    
+Skeleton coupling
+*************************
+    
+The API is desogned to perform a GridSearch on the parameter spaces of algorithms. For example, if one is utilizing skeleton coupling Multilayer Modularity Maximization, then you can provide a range of values for resolutions parameter and interlayer edge weights. Note that by default, interlayer coupling will be uniform diagonal.
 
     
+.. code-block:: python
+    interlayer_edge_weights = np.linspace(0, 1, 6)
+    resolutions_parameters = np.linspace(0.9, 1.1, 6)
+    
+    partitions, C = TN.run_community_detection(method = 'MMM', ## modularity maximization
+                                           update_method = 'skeleton', ## skeleton coupling
+                                           interlayers = interlayer_edge_weights, #gridsearch parameters1
+                                           resolutions = resolution_parameters, #gridsearch parameters2
+                                           spikes = spikes) # Spike train
+                                           
+Alternatively, if one wants to use skeleton coupling with Infomap, below is an example code. Note that, if one wants to test a single parameter, they need to pass an array-like for the GridSearch to run properly.
+                                           
+.. code-block:: python
+    interlayer_edge_weights = [0.2]
+    edge_thresholds = [0.5]
+    
+    thresholded_adjacency_matrices = []
+    for i in range(layers):
+        thresholded_adjacency_matrices.append(threshold(adjacency_matrices[i],edge_thresholds[0]))
+    
+    TN_thresholded = temporal_network(size, length, window_size, data = 'list__adjacency', list_adjacency = thresholded_adjacency_matrices, omega = 1, kind = 'ordinal')
+    
+    partitions, C = TN_thresholded.run_community_detection(method = 'Infomap', ## modularity maximization
+                                           update_method = 'skeleton', ## skeleton coupling
+                                           interlayers = interlayer_edge_weights, #gridsearch parameters1
+                                           thresholds = edge_thresholds, #gridsearch parameters2
+                                           spikes = spikes) # Spike train
+                                           
+In general, below code returns a dictionary whose values are accessed by ``'%d,%d'%(t,node)`` where :math:`0<=t<=T_max-1` is the layer id in which a ``node`` is belong to and :math:`node` is the node id. Each value is a list of nodes (or an empty list) indicating the skeleton coupling assignment of the ``node`` in snaphot ``t``.
+
+.. code-block:: python
+    membership_static = TN.infomap_static(adjacency_matrices)
+    bridge_links = TN.find_skeleton(membership_static)
+    
+    membership_static = TN.MMM_static()
+    bridge_links = TN.find_skeleton(membership_static)
+    
+Refer to the supplementary material of the paper for the psedocode computing skeleton coupling edges.

@@ -1,31 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
-#import numpy as np
-#import matplotlib.pyplot as plt
-#import matplotlib as mpl
-#from matplotlib.colors import Normalize
-#import random
-#from scipy.ndimage import gaussian_filter1d
-#from math import floor
-
-#from elephant.spike_train_generation import homogeneous_poisson_process
-#import elephant.conversion as conv
-#import neo as n
-#import quantities as pq
-#from quantities import Hz, s, ms
-
-#from sklearn.metrics import normalized_mutual_info_score, adjusted_rand_score, f1_score
-#
-#import leidenalg as la
-#import igraph as ig
-
-# In[ ]:
-
-
 def normalized_cross_corr(x,y):
     """
     Function to compute normalized cross-correlation between two vectors.
@@ -566,7 +538,7 @@ def display_truth(comm_sizes, community_operation, ax = None):
     
         scattered_truth = generate_ground_truth(comm_sizes, 
                                                 method = 'integrated', 
-                                                pad = True, 
+                                                pad = False, 
                                                 community_operation = community_operation)
         
         number_of_colors = max(scattered_truth)+1
@@ -600,7 +572,7 @@ def display_truth(comm_sizes, community_operation, ax = None):
     
         integrated_truth = generate_ground_truth(comm_sizes, 
                                                  method = 'scattered', 
-                                                 pad = True, 
+                                                 pad = False, 
                                                  community_operation = community_operation)
         number_of_colors = max(integrated_truth)+1
         membership = [[] for i in range(number_of_colors)]
@@ -923,6 +895,83 @@ def consensus_display(partition, n, t):
     cmap = mpl.colors.ListedColormap(color)
     
     return(comms, cmap, color)
+
+    def read_csv(path, in_put, subject, roi):
+        """
+        Function for reading .csv files containing spike complexity, features or raw calcium time series.
+        
+        Parameters
+        -------------
+        path : str
+            path of the file
+        in_put : str
+            Type of the input i.e. spike complexity, features or time series. Will be appended to the path.
+        subject : str
+            Subject ID. Will be appended to the path.
+        roi : str
+            Subdirectory containing ROI files.
+        
+        Returns
+        -----------
+        spikes : array
+            Numpy array containing the input.
+        
+        """
+        
+        spike = open( path + in_put + subject + "_spikes_complexity.csv", "r")
+        reader_spike = csv.reader(spike)
+        n = read_roi(path, roi, subject)
+        spikes = np.zeros((n,8000)) # roi x time
+    
+        for i,line in enumerate(reader_spike):
+            for j in range(len(line)):
+                spikes[i][j]=line[j]
+            
+        return(spikes)
+
+    def load_obj(path, name):
+        """
+        Function that loads the pickled objects.
+        
+        Parameters
+        -------------
+        path : str
+            Path directory for the object.
+        name : str
+            name of the .pkl object.
+            
+        Returns
+        -----------
+        pickled : .pkl object
+            Object to be returned.
+        """
+        with open(path + name + '.pkl', 'rb') as f:
+            return pickle.load(f)
+            
+    def read_roi(path, roi, subject_roi):
+        """
+        Helper function for reading .roi files. This function is necessary for reading out the .csv files.
+        
+        Parameters
+        -------------
+        path : str
+            Path of the object.
+        roi : str
+            Name of the ROI file that will be appended to the path.
+        subject_roi : str
+            Name of the subject.
+            
+        Returns
+        ---------
+        n : int
+            Number of ROIs for the given subject.
+        """
+        roi = read_roi_zip(glob(path+roi+subject_roi +'.zip')[0])
+        n = len(roi)
+        for i, R in enumerate(roi):
+            x = roi[R]['x']
+            y = roi[R]['y']
+    return(n)
 
 
 # In[ ]:

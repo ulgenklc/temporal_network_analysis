@@ -8,3 +8,5 @@ The ``temporal_network`` class
     
 .. automodule:: helpers
     :members:
+    :undoc-members:
+    :show-inheritance:

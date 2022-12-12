@@ -1,15 +1,68 @@
 Generating time series of spiking neurons
 ============================================
 
-Installation/Usage
-*********************
-As the package has not been published on PyPi yet, it CANNOT be install using pip.
+Planting dynamic communities into synthetic time series data
+*************************************************************
+We are going to simulate a growing community evolution scnerio in which one community keeps expanding over time.
 
-For now, the suggested method is to put the file `Temporal_Community_Detection.py` in the same directory as your source files and call ``from Temporal_Community_Detection import temporal_network``
+.. code-block:: python
 
-Initiate a ``temporal_network`` object
-*********************************************
-Temporal networks are a subclass of multilayer/multiplex networks encoding the dynamical systems change over time as a set of networks. 
-Our main object is a ``temporal_network`` and it accepts multiple type of data. One can provide the temporal connectivity as a list of adjacency matrices, a tensor or a dictionary of edge list. See API for more information.
-
+    #### Inputs
+    fixed_size = int(abs(np.random.normal(30,10))) # choose a fixed number for size of each community
+    layers = 6
+    num_neurons = fixed_size*layers
     
+    comm_sizes = [fixed_size for i in range(layers)] 
+
+    spike_rates = [int(abs(np.random.normal(20,8))) for i in range(layers)]
+    
+    display_truth(comm_sizes, community_operation = 'grow')
+    
+.. figure:: Ground_truths_G_ESCR.jpg
+   :width: 200px
+   :height: 200px
+   :scale: 200 %
+   :align: center
+   
+   Colors indicate different community labels in a community expansion scnerio. In the left panel, we consider neurons that aren't part of any communities as a one big community which is lumped together, whereas in the right panel, we assign a unique community label for each neuron that they keep belong until they join the expanding community over time.
+   
+
+We then create associated time series by planting in dynamic communities determined by the above parameters. We jitter a master spike randomly in order to create communities. We also choose a window size at which a community event will happen.
+    
+.. code-block:: python
+
+    window_size = 1000 # size, in frames, each adjacency matrix correspond to. better to be equal to bin_size 
+    k = 5 #parameter for jittering the spikes
+    
+    spike_rates = [int(abs(np.random.normal(20,8))) for i in range(layers)]
+    
+    spikes = create_time_series('grow', comm_sizes, spike_rates, windowsize = window_size, k = k)
+    
+.. figure:: spike_train_G_ESCR.jpg
+   :width: 200px
+   :height: 200px
+   :scale: 200 %
+   :align: center
+   
+   Colors indicate different community labels in a community expansion scnerio. In the left panel, we consider neurons that aren't part of any communities as a one big community which is lumped together, whereas in the right panel, we assign a unique community label for each neuron that they keep belong until they join the expanding community over time.
+   
+   
+We bin the spikes into time-windows and compute positive maximum cross-correlation. We choose our bin size equal to window size to capture community events properly. We also multiply the spike trains with a gaussian kernel to maximize the correlation.
+
+.. code-block:: python
+    adjacency_matrices = {}
+    standard_dev = 1.2 # for gaussian kernel
+    binned_spikes = bin_time_series(spikes, window_size, gaussian = True, sigma = standard_dev)
+    
+    for i in range(layers):
+        adjacency_matrices['t%d'%i] = cross_correlation_matrix(binned_spikes_G_ESCR[i-1])[0]
+
+.. figure:: adjacencies_G_ESCR.jpg
+   :width: 200px
+   :height: 200px
+   :scale: 200 %
+   :align: center
+   
+   Resulting adjacency matrices for each snapshot. 
+   
+   

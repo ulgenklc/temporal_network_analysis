@@ -1,7 +1,7 @@
 The ``temporal_network`` class
 ***************************************
 
-.. automodule:: temporal_network.temporal_network
+.. autoclass:: temporal_network.temporal_network
     :members:
     :undoc-members:
     :show-inheritance:

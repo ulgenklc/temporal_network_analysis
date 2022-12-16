@@ -1,4 +1,4 @@
-Dynamic Community Detection(DCD)
+Dynamic Community Detection (DCD)
 =================================
 
 Once we have a set of n by n adjacency matrices for a temporal network with T many snapshots, we can create a ``temporal_network`` object. One can input either a list of adjacency matrices, an edge list or, a supra-adjacency matrix in order to construct the temporal network.

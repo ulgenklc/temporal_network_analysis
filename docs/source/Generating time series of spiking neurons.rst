@@ -56,7 +56,7 @@ We bin the spikes into time-windows and compute positive maximum cross-correlati
     binned_spikes = bin_time_series(spikes, window_size, gaussian = True, sigma = standard_dev)
     
     for i in range(layers):
-        adjacency_matrices.append(cross_correlation_matrix(binned_spikes_G_ESCR[i-1])[0])
+        adjacency_matrices.append(cross_correlation_matrix(binned_spikes[i])[0])
 
 .. figure:: adjacencies_G_ESCR.jpg
    :width: 200px

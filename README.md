@@ -3,7 +3,7 @@ Temporal network is a python package for multilayer network analysis of time ser
 
 We present our skeleton coupling algorithm within the package accompanied by the paper:
 
-Bengier Ülgen Kilic, Sarah Feldt Muldoon, Skeleton coupling: a novel interlayer mapping of community evolution in temporal networks, 2023, https://arxiv.org/abs/2301.10860
+Bengier Ülgen Kilic, Sarah Feldt Muldoon, Skeleton coupling: a novel interlayer mapping of community evolution in temporal networks, Journal of Complex Networks, Volume 12, Issue 2, April 2024, cnae011, https://doi.org/10.1093/comnet/cnae011
 
 ## Available DCD algorithms
 Additionally, one can perform several different community detection algorithms such as:
